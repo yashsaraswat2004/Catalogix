@@ -4,18 +4,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle, CheckCircle2, Settings2, Info } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Settings2, Info, Download, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { WingSettings as WingSettingsType, COURIER_CODES, WING_SETTINGS_LABELS, REQUIRED_WING_SETTINGS } from '@/types/coupang';
+import { WingSettings as WingSettingsType, COURIER_CODES, WING_SETTINGS_LABELS, REQUIRED_WING_SETTINGS, CoupangApiCredentials } from '@/types/coupang';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useCoupangApi } from '@/hooks/useCoupangApi';
+import { toast } from 'sonner';
 
 interface WingSettingsProps {
   settings: WingSettingsType;
   onSettingsChange: (settings: WingSettingsType) => void;
+  credentials?: CoupangApiCredentials;
 }
 
 const FIELD_HELP: Record<keyof WingSettingsType, string> = {
-  returnCenterCode: 'Find this in Wing → Settings → Return Location Management. Copy the center code.',
+  returnCenterCode: 'Click "Fetch from Wing" to auto-fill this, or find it in Wing → Settings → Return Location.',
   returnChargeName: 'The name you gave to your return location in Wing.',
   companyContactNumber: 'Contact phone number for return inquiries. Format: 02-1234-5678',
   returnZipCode: 'Postal code of your return address.',
@@ -23,14 +26,16 @@ const FIELD_HELP: Record<keyof WingSettingsType, string> = {
   returnAddressDetail: 'Detailed address (building, floor, unit).',
   returnCharge: 'Return shipping fee charged to customer (one-way). Usually 2500-5000 KRW.',
   deliveryChargeOnReturn: 'Initial shipping fee for free delivery returns. Must be between 100-150% of return charge.',
-  outboundShippingPlaceCode: 'Find this in Wing → Settings → Shipping Location Management.',
+  outboundShippingPlaceCode: 'Click "Fetch from Wing" to auto-fill this, or find it in Wing → Settings → Shipping Location.',
   deliveryCompanyCode: 'Select your contracted courier company.',
   vendorUserId: 'Your Wing login ID (email or username used to log into Wing).',
 };
 
-export function WingSettingsForm({ settings, onSettingsChange }: WingSettingsProps) {
+export function WingSettingsForm({ settings, onSettingsChange, credentials }: WingSettingsProps) {
   const [localSettings, setLocalSettings] = useState<WingSettingsType>(settings);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const { fetchShippingCenters } = useCoupangApi();
 
   useEffect(() => {
     setLocalSettings(settings);
@@ -47,6 +52,53 @@ export function WingSettingsForm({ settings, onSettingsChange }: WingSettingsPro
     setHasChanges(false);
   };
 
+  const handleFetchFromWing = async () => {
+    if (!credentials || !credentials.accessKey || !credentials.secretKey || !credentials.vendorId) {
+      toast.error('Please configure and save your API credentials first');
+      return;
+    }
+
+    setIsFetching(true);
+    try {
+      const result = await fetchShippingCenters(credentials);
+      
+      if (result.success) {
+        const newSettings = { ...localSettings };
+        
+        // Auto-fill from first return center
+        if (result.returnCenters.length > 0) {
+          const center = result.returnCenters[0];
+          newSettings.returnCenterCode = center.code;
+          newSettings.returnChargeName = center.name;
+          newSettings.returnAddress = center.address;
+          newSettings.returnZipCode = center.zipCode;
+          newSettings.companyContactNumber = center.contactNumber;
+          toast.success(`Found Return Center: ${center.name} (Code: ${center.code})`);
+        } else {
+          toast.warning('No return centers found in your Wing account');
+        }
+
+        // Auto-fill from first shipping place
+        if (result.shippingPlaces.length > 0) {
+          const place = result.shippingPlaces[0];
+          newSettings.outboundShippingPlaceCode = place.code;
+          toast.success(`Found Shipping Place: ${place.name} (Code: ${place.code})`);
+        } else {
+          toast.warning('No shipping places found in your Wing account');
+        }
+
+        setLocalSettings(newSettings);
+        setHasChanges(true);
+      } else {
+        toast.error(result.message || 'Failed to fetch shipping centers');
+      }
+    } catch (err) {
+      toast.error('Error fetching shipping centers');
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
   const getMissingFields = (): string[] => {
     return REQUIRED_WING_SETTINGS.filter(field => {
       const value = localSettings[field];
@@ -56,17 +108,43 @@ export function WingSettingsForm({ settings, onSettingsChange }: WingSettingsPro
 
   const missingFields = getMissingFields();
   const isComplete = missingFields.length === 0;
+  const hasValidCredentials = credentials?.accessKey && credentials?.secretKey && credentials?.vendorId;
 
   return (
     <Card className="border-border/50">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings2 className="h-5 w-5" />
-          Wing Account Settings
-        </CardTitle>
-        <CardDescription>
-          Configure your Coupang Wing return location and shipping settings. All fields are required for product upload.
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Settings2 className="h-5 w-5" />
+              Wing Account Settings
+            </CardTitle>
+            <CardDescription>
+              Configure your Coupang Wing return location and shipping settings. All fields are required for product upload.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleFetchFromWing}
+            disabled={isFetching || !hasValidCredentials}
+            className="gap-2"
+          >
+            {isFetching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Fetch from Wing
+          </Button>
+        </div>
+        {!hasValidCredentials && (
+          <Alert className="mt-2 border-amber-500/50 bg-amber-500/10">
+            <Info className="h-4 w-4 text-amber-500" />
+            <AlertDescription className="text-amber-700 dark:text-amber-400">
+              Save your API credentials first to auto-fetch Return Center and Shipping Place codes.
+            </AlertDescription>
+          </Alert>
+        )}
       </CardHeader>
       <CardContent className="space-y-6">
         {!isComplete && (

@@ -190,6 +190,51 @@ export function useCoupangApi() {
     }
   }, []);
 
+  // Fetch shipping centers from Coupang API
+  const fetchShippingCenters = useCallback(async (
+    credentials: CoupangApiCredentials
+  ): Promise<{
+    success: boolean;
+    returnCenters: Array<{ code: string; name: string; address: string; zipCode: string; contactNumber: string }>;
+    shippingPlaces: Array<{ code: string; name: string; address: string; zipCode: string }>;
+    message: string;
+  }> => {
+    setIsValidating(true);
+    setError(null);
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('coupang-api', {
+        body: {
+          action: 'fetch-shipping-centers',
+          credentials: {
+            accessKey: credentials.accessKey,
+            secretKey: credentials.secretKey,
+            vendorId: credentials.vendorId,
+          },
+        },
+      });
+
+      if (fnError) {
+        const message = fnError.message || 'Failed to fetch shipping centers';
+        setError(message);
+        return { success: false, returnCenters: [], shippingPlaces: [], message };
+      }
+
+      return {
+        success: data?.success || false,
+        returnCenters: data?.returnCenters || [],
+        shippingPlaces: data?.shippingPlaces || [],
+        message: data?.message || 'Unknown response'
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error';
+      setError(message);
+      return { success: false, returnCenters: [], shippingPlaces: [], message };
+    } finally {
+      setIsValidating(false);
+    }
+  }, []);
+
   return {
     isValidating,
     isUploading,
@@ -198,6 +243,7 @@ export function useCoupangApi() {
     dryRun,
     uploadProducts,
     testSignature,
+    fetchShippingCenters,
     clearError: () => setError(null),
   };
 }

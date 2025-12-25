@@ -399,7 +399,8 @@ const Index = () => {
           <TabsContent value="settings" className="space-y-6">
             <WingSettingsForm 
               settings={wingSettings} 
-              onSettingsChange={handleWingSettingsSave} 
+              onSettingsChange={handleWingSettingsSave}
+              credentials={credentials || undefined}
             />
           </TabsContent>
 
