@@ -52,7 +52,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('upload');
   
   const { toast } = useToast();
-  const { validateCredentials, dryRun, uploadProducts, isLoading } = useCoupangApi();
+  const { validateCredentials, dryRun, uploadProducts, isValidating, isUploading } = useCoupangApi();
 
   // Load credentials and settings from localStorage
   useEffect(() => {
@@ -181,7 +181,7 @@ const Index = () => {
     });
 
     try {
-      const result = await dryRunUpload(credentials, wingSettings, toUpload);
+      const result = await dryRun(credentials, wingSettings, toUpload);
       
       if (result.success) {
         toast({
@@ -330,7 +330,7 @@ const Index = () => {
     validProducts.some(p => p.id === id)
   ).length;
 
-  const isLoading = isValidating || isUploading || isProcessing;
+  const isLoadingAny = isValidating || isUploading || isProcessing;
   const wingSettingsComplete = isWingSettingsComplete();
 
   return (
@@ -408,7 +408,7 @@ const Index = () => {
             <section className="animate-fade-in">
               <div className="glass-card p-6">
                 <h2 className="text-lg font-semibold mb-4">File Upload</h2>
-                <FileUpload onFileParsed={handleFileParsed} isProcessing={isLoading} />
+                <FileUpload onFileParsed={handleFileParsed} isProcessing={isLoadingAny} />
                 {fileName && (
                   <p className="mt-3 text-sm text-muted-foreground">
                     Current file: <span className="font-medium text-foreground">{fileName}</span>
@@ -457,7 +457,7 @@ const Index = () => {
                       variant="secondary"
                       size="sm" 
                       onClick={handleDryRun}
-                      disabled={isLoading || selectedValidCount === 0 || !credentials}
+                      disabled={isLoadingAny || selectedValidCount === 0 || !credentials}
                     >
                       <Play className="w-4 h-4 mr-2" />
                       Dry Run
@@ -465,7 +465,7 @@ const Index = () => {
                     <Button 
                       size="sm" 
                       onClick={handleUploadClick}
-                      disabled={isLoading || selectedValidCount === 0 || !credentials || !wingSettingsComplete}
+                      disabled={isLoadingAny || selectedValidCount === 0 || !credentials || !wingSettingsComplete}
                       className="gradient-primary text-primary-foreground"
                     >
                       <Upload className="w-4 h-4 mr-2" />
