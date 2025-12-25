@@ -314,6 +314,19 @@ async function validateCredentials(accessKey: string, secretKey: string, vendorI
     } else if (response.status === 401) {
       return { valid: false, message: 'Invalid API credentials. Please check your Access Key and Secret Key.' };
     } else if (response.status === 403) {
+      // Parse response to check for IP whitelist issue
+      try {
+        const errorData = JSON.parse(responseText);
+        if (errorData.message && errorData.message.includes('ip address')) {
+          // Extract IP from message
+          const ipMatch = errorData.message.match(/(\d+\.\d+\.\d+\.\d+)/);
+          const ip = ipMatch ? ipMatch[1] : 'unknown';
+          return { 
+            valid: false, 
+            message: `IP not whitelisted. Please add IP "${ip}" to your Wing API settings (Seller Info → Open API → IP Whitelist).` 
+          };
+        }
+      } catch {}
       return { valid: false, message: 'Access forbidden. Please check your Vendor ID and API permissions.' };
     } else {
       return { valid: false, message: `API error (${response.status}): ${responseText.slice(0, 200)}` };
