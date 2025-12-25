@@ -11,7 +11,7 @@ interface BackendModeContextType {
 
 const BackendModeContext = createContext<BackendModeContextType | undefined>(undefined);
 
-const LOCAL_FUNCTIONS_URL = 'http://localhost:54321/functions/v1';
+const LOCAL_FUNCTIONS_URL = 'http://localhost:8000';
 const STORAGE_KEY = 'coupang_backend_mode';
 
 export function BackendModeProvider({ children }: { children: ReactNode }) {

@@ -1,7 +1,7 @@
 // Helper for local edge function development
 // When running `supabase functions serve`, use this to call local functions
 
-const LOCAL_FUNCTIONS_URL = 'http://localhost:54321/functions/v1';
+const LOCAL_FUNCTIONS_URL = 'http://localhost:8000';
 
 // Get the current backend mode from localStorage
 function getBackendMode(): 'cloud' | 'local' {
