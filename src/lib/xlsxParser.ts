@@ -1,71 +1,70 @@
 import * as XLSX from 'xlsx';
-import { ParsedProduct, ValidationError, REQUIRED_FIELDS, FIELD_LABELS_EN, CoupangProduct } from '@/types/coupang';
+import { ParsedProduct, ValidationError, REQUIRED_FIELDS, FIELD_LABELS_EN, CoupangProduct, getExcelColumnLetter } from '@/types/coupang';
 
 // Column indices based on the Coupang template structure
-const COLUMN_INDICES = {
-  category: 0,           // Category
-  productName: 1,        // Product Name
-  saleStartDate: 2,      // Sale Start Date
-  saleEndDate: 3,        // Sale End Date
-  productStatus: 4,      // Product Status
-  statusDescription: 5,  // Status Description
-  brand: 6,              // Brand
-  manufacturer: 7,       // Manufacturer
-  searchKeywords: 8,     // Search Keywords
+// These map to exact Excel columns for error reference
+export const COLUMN_INDICES: Record<string, number> = {
+  category: 0,           // Column A
+  productName: 1,        // Column B
+  saleStartDate: 2,      // Column C
+  saleEndDate: 3,        // Column D
+  productStatus: 4,      // Column E
+  statusDescription: 5,  // Column F
+  brand: 6,              // Column G
+  manufacturer: 7,       // Column H
+  searchKeywords: 8,     // Column I
   
   // Purchase Options (9-16)
-  optionType1: 9,
-  optionValue1: 10,
-  optionType2: 11,
-  optionValue2: 12,
-  optionType3: 13,
-  optionValue3: 14,
-  optionType4: 15,
-  optionValue4: 16,
+  optionType1: 9,        // Column J
+  optionValue1: 10,      // Column K
+  optionType2: 11,       // Column L
+  optionValue2: 12,      // Column M
+  optionType3: 13,       // Column N
+  optionValue3: 14,      // Column O
+  optionType4: 15,       // Column P
+  optionValue4: 16,      // Column Q
   
   // Search Options (17-24)
-  searchOptionType1: 17,
-  searchOptionValue1: 18,
-  searchOptionType2: 19,
-  searchOptionValue2: 20,
-  searchOptionType3: 21,
-  searchOptionValue3: 22,
-  searchOptionType4: 23,
-  searchOptionValue4: 24,
+  searchOptionType1: 17, // Column R
+  searchOptionValue1: 18,// Column S
+  searchOptionType2: 19, // Column T
+  searchOptionValue2: 20,// Column U
+  searchOptionType3: 21, // Column V
+  searchOptionValue3: 22,// Column W
+  searchOptionType4: 23, // Column X
+  searchOptionValue4: 24,// Column Y
   
   // Configuration (25-37)
-  salePrice: 25,
-  discountBasePrice: 26,
-  stockQuantity: 27,
-  leadTime: 28,
-  maxPurchasePerPerson: 29,
-  maxPurchasePeriod: 30,
-  adultOnly: 31,
-  taxable: 32,
-  parallelImport: 33,
-  overseasPurchase: 34,
-  vendorProductCode: 35,
-  modelNumber: 36,
-  barcode: 37,
+  salePrice: 25,         // Column Z
+  discountBasePrice: 26, // Column AA
+  stockQuantity: 27,     // Column AB
+  leadTime: 28,          // Column AC
+  maxPurchasePerPerson: 29, // Column AD
+  maxPurchasePeriod: 30, // Column AE
+  adultOnly: 31,         // Column AF
+  taxable: 32,           // Column AG
+  parallelImport: 33,    // Column AH
+  overseasPurchase: 34,  // Column AI
+  vendorProductCode: 35, // Column AJ
+  modelNumber: 36,       // Column AK
+  barcode: 37,           // Column AL
   
   // Certification Info (38-51)
-  certInfoType1: 38,
-  certInfoValue1: 39,
-  // ... more cert fields
+  certInfoType1: 38,     // Column AM
+  certInfoValue1: 39,    // Column AN
   
   // Notice Info (52-66)
-  noticeCategory: 52,
-  noticeValue1: 53,
-  noticeValue2: 54,
-  // ... more notice values
+  noticeCategory: 52,    // Column BA
+  noticeValue1: 53,      // Column BB
+  noticeValue2: 54,      // Column BC
   
   // Images (67-69)
-  mainImage: 67,
-  additionalImages: 68,
-  conditionImages: 69,
+  mainImage: 67,         // Column BP
+  additionalImages: 68,  // Column BQ
+  conditionImages: 69,   // Column BR
   
   // Detailed Description (70)
-  detailedDescription: 70,
+  detailedDescription: 70, // Column BS
   
   // Documents (71-77)
   document1: 71,
@@ -76,6 +75,11 @@ const COLUMN_INDICES = {
   document6: 76,
   document7: 77,
 };
+
+// Get cell reference string like "Z4", "AA10"
+function getCellReference(columnIndex: number, rowIndex: number): string {
+  return `${getExcelColumnLetter(columnIndex)}${rowIndex}`;
+}
 
 export function parseXlsxFile(file: File): Promise<ParsedProduct[]> {
   return new Promise((resolve, reject) => {
@@ -194,7 +198,7 @@ function parseRow(row: any[], rowIndex: number): ParsedProduct {
   }
   data.documents = documents;
   
-  const validationErrors = validateProduct(data);
+  const validationErrors = validateProduct(data, rowIndex);
   
   return {
     id: `product-${rowIndex}-${Date.now()}`,
@@ -205,100 +209,81 @@ function parseRow(row: any[], rowIndex: number): ParsedProduct {
   };
 }
 
-function validateProduct(data: Partial<CoupangProduct>): ValidationError[] {
+function validateProduct(data: Partial<CoupangProduct>, rowIndex: number): ValidationError[] {
   const errors: ValidationError[] = [];
+  
+  // Helper to create error with cell reference
+  const createError = (
+    field: keyof CoupangProduct, 
+    message: string, 
+    severity: 'error' | 'warning'
+  ): ValidationError => {
+    const columnIndex = COLUMN_INDICES[field];
+    return {
+      field,
+      fieldLabel: FIELD_LABELS_EN[field],
+      message,
+      severity,
+      columnIndex,
+      cellReference: columnIndex !== undefined ? getCellReference(columnIndex, rowIndex) : undefined,
+    };
+  };
   
   // Check required fields
   REQUIRED_FIELDS.forEach(field => {
     const value = data[field];
     if (value === undefined || value === null || value === '' || 
         (typeof value === 'number' && value === 0 && field !== 'maxPurchasePerPerson' && field !== 'maxPurchasePeriod')) {
-      errors.push({
-        field,
-        fieldLabel: FIELD_LABELS_EN[field],
-        message: `${FIELD_LABELS_EN[field]} is required`,
-        severity: 'error',
-      });
+      errors.push(createError(field, `${FIELD_LABELS_EN[field]} is required`, 'error'));
     }
   });
   
   // Validate price - sale price should not exceed discount base price
   if (data.salePrice && data.discountBasePrice && data.salePrice > data.discountBasePrice) {
-    errors.push({
-      field: 'salePrice',
-      fieldLabel: FIELD_LABELS_EN.salePrice,
-      message: 'Sale price exceeds discount base price',
-      severity: 'warning',
-    });
+    errors.push(createError('salePrice', 'Sale price exceeds discount base price', 'warning'));
   }
   
   // Validate image URL format
   if (data.mainImage && !isValidUrl(data.mainImage)) {
-    errors.push({
-      field: 'mainImage',
-      fieldLabel: FIELD_LABELS_EN.mainImage,
-      message: 'Invalid image URL format',
-      severity: 'error',
-    });
+    errors.push(createError('mainImage', 'Invalid image URL format', 'error'));
   }
   
   // Validate stock quantity
   if (data.stockQuantity !== undefined && data.stockQuantity < 0) {
-    errors.push({
-      field: 'stockQuantity',
-      fieldLabel: FIELD_LABELS_EN.stockQuantity,
-      message: 'Stock quantity must be 0 or greater',
-      severity: 'error',
-    });
+    errors.push(createError('stockQuantity', 'Stock quantity must be 0 or greater', 'error'));
   }
   
   // Validate lead time (must be positive)
   if (data.leadTime !== undefined && data.leadTime < 1) {
-    errors.push({
-      field: 'leadTime',
-      fieldLabel: FIELD_LABELS_EN.leadTime,
-      message: 'Lead time must be at least 1 day',
-      severity: 'error',
-    });
+    errors.push(createError('leadTime', 'Lead time must be at least 1 day', 'error'));
   }
   
   // Validate sale price (must be positive)
   if (data.salePrice !== undefined && data.salePrice <= 0) {
-    errors.push({
-      field: 'salePrice',
-      fieldLabel: FIELD_LABELS_EN.salePrice,
-      message: 'Sale price must be greater than 0',
-      severity: 'error',
-    });
+    errors.push(createError('salePrice', 'Sale price must be greater than 0', 'error'));
   }
   
   // Validate discount base price (must be positive)
   if (data.discountBasePrice !== undefined && data.discountBasePrice <= 0) {
-    errors.push({
-      field: 'discountBasePrice',
-      fieldLabel: FIELD_LABELS_EN.discountBasePrice,
-      message: 'Discount base price must be greater than 0',
-      severity: 'error',
-    });
+    errors.push(createError('discountBasePrice', 'Discount base price must be greater than 0', 'error'));
   }
   
   // Validate product name length (Coupang has limits)
   if (data.productName && data.productName.length > 100) {
-    errors.push({
-      field: 'productName',
-      fieldLabel: FIELD_LABELS_EN.productName,
-      message: 'Product name exceeds 100 characters',
-      severity: 'warning',
-    });
-  }
-  
-  // Validate category is not empty and looks valid
-  if (data.category && !/^\d+$/.test(data.category.replace(/\s/g, '').split('>').pop() || '')) {
-    // Category should end with a numeric code in Coupang format
-    // This is a soft warning as category format varies
+    errors.push(createError('productName', 'Product name exceeds 100 characters', 'warning'));
   }
   
   return errors;
+}
+
+// Re-validate a single product (for after inline edits)
+export function revalidateProduct(product: ParsedProduct): ParsedProduct {
+  const validationErrors = validateProduct(product.data, product.rowIndex);
+  return {
+    ...product,
+    validationErrors,
+    status: validationErrors.some(e => e.severity === 'error') ? 'pending' : 'validated',
+  };
 }
 
 function isValidUrl(string: string): boolean {
