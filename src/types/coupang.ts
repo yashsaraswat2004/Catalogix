@@ -1,18 +1,18 @@
 // Coupang Product Types based on the official XLSM template
 
 export interface CoupangProduct {
-  // 기본정보 (Basic Info)
-  category: string;              // 카테고리 (필수)
-  productName: string;           // 등록상품명 (필수)
-  saleStartDate: string;         // 판매시작일
-  saleEndDate: string;           // 판매종료일
-  productStatus: string;         // 상품상태
-  statusDescription: string;     // 상태설명
-  brand: string;                 // 브랜드 (필수)
-  manufacturer: string;          // 제조사 (필수)
-  searchKeywords: string;        // 검색어
+  // Basic Info
+  category: string;              // Category (Required)
+  productName: string;           // Product Name (Required)
+  saleStartDate: string;         // Sale Start Date
+  saleEndDate: string;           // Sale End Date
+  productStatus: string;         // Product Status
+  statusDescription: string;     // Status Description
+  brand: string;                 // Brand (Required)
+  manufacturer: string;          // Manufacturer (Required)
+  searchKeywords: string;        // Search Keywords
 
-  // 구매옵션 (Purchase Options)
+  // Purchase Options
   optionType1: string;
   optionValue1: string;
   optionType2: string;
@@ -22,7 +22,7 @@ export interface CoupangProduct {
   optionType4: string;
   optionValue4: string;
 
-  // 검색옵션 (Search Options)
+  // Search Options
   searchOptionType1: string;
   searchOptionValue1: string;
   searchOptionType2: string;
@@ -32,22 +32,22 @@ export interface CoupangProduct {
   searchOptionType4: string;
   searchOptionValue4: string;
 
-  // 구성 정보 (Configuration)
-  salePrice: number;             // 판매가격 (필수)
-  discountBasePrice: number;     // 할인율기준가 (필수)
-  stockQuantity: number;         // 재고수량 (필수)
-  leadTime: number;              // 출고리드타임 (필수)
-  maxPurchasePerPerson: number;  // 인당최대구매수량
-  maxPurchasePeriod: number;     // 최대구매수량기간(일)
-  adultOnly: boolean;            // 성인상품(19)
-  taxable: boolean;              // 과세여부
-  parallelImport: boolean;       // 병행수입여부
-  overseasPurchase: boolean;     // 해외구매대행
-  vendorProductCode: string;     // 업체상품코드
-  modelNumber: string;           // 모델번호
-  barcode: string;               // 바코드
+  // Configuration
+  salePrice: number;             // Sale Price (Required)
+  discountBasePrice: number;     // Discount Base Price (Required)
+  stockQuantity: number;         // Stock Quantity (Required)
+  leadTime: number;              // Lead Time (Required)
+  maxPurchasePerPerson: number;  // Max Purchase Per Person
+  maxPurchasePeriod: number;     // Max Purchase Period (Days)
+  adultOnly: boolean;            // Adult Only (19+)
+  taxable: boolean;              // Taxable
+  parallelImport: boolean;       // Parallel Import
+  overseasPurchase: boolean;     // Overseas Purchase Agency
+  vendorProductCode: string;     // Vendor Product Code
+  modelNumber: string;           // Model Number
+  barcode: string;               // Barcode
 
-  // 인증 정보 (Certification)
+  // Certification Info
   certInfoType1: string;
   certInfoValue1: string;
   certInfoType2: string;
@@ -55,19 +55,19 @@ export interface CoupangProduct {
   certInfoType3: string;
   certInfoValue3: string;
 
-  // 고시정보 (Notice Info)
+  // Notice Info
   noticeCategory: string;
   noticeValues: string[];
 
-  // 이미지 (Images)
-  mainImage: string;             // 대표(옵션)이미지 (필수)
-  additionalImages: string[];    // 추가이미지
-  conditionImages: string[];     // 상태이미지(중고상품)
+  // Images
+  mainImage: string;             // Main Image (Required)
+  additionalImages: string[];    // Additional Images
+  conditionImages: string[];     // Condition Images (Used)
 
-  // 상품 상세 설명 (Product Description)
-  detailedDescription: string;   // 상세 설명 (필수)
+  // Product Description
+  detailedDescription: string;   // Detailed Description (Required)
 
-  // 구비서류 (Documents)
+  // Documents
   documents: string[];
 }
 
@@ -147,6 +147,7 @@ export const REQUIRED_FIELDS: (keyof CoupangProduct)[] = [
   'detailedDescription',
 ];
 
+// Korean field labels (for reference with XLSM files)
 export const FIELD_LABELS: Record<keyof CoupangProduct, string> = {
   category: '카테고리',
   productName: '등록상품명',
@@ -199,4 +200,59 @@ export const FIELD_LABELS: Record<keyof CoupangProduct, string> = {
   conditionImages: '상태이미지',
   detailedDescription: '상세설명',
   documents: '구비서류',
+};
+
+// English field labels (for UI display)
+export const FIELD_LABELS_EN: Record<keyof CoupangProduct, string> = {
+  category: 'Category',
+  productName: 'Product Name',
+  saleStartDate: 'Sale Start Date',
+  saleEndDate: 'Sale End Date',
+  productStatus: 'Product Status',
+  statusDescription: 'Status Description',
+  brand: 'Brand',
+  manufacturer: 'Manufacturer',
+  searchKeywords: 'Search Keywords',
+  optionType1: 'Option Type 1',
+  optionValue1: 'Option Value 1',
+  optionType2: 'Option Type 2',
+  optionValue2: 'Option Value 2',
+  optionType3: 'Option Type 3',
+  optionValue3: 'Option Value 3',
+  optionType4: 'Option Type 4',
+  optionValue4: 'Option Value 4',
+  searchOptionType1: 'Search Option Type 1',
+  searchOptionValue1: 'Search Option Value 1',
+  searchOptionType2: 'Search Option Type 2',
+  searchOptionValue2: 'Search Option Value 2',
+  searchOptionType3: 'Search Option Type 3',
+  searchOptionValue3: 'Search Option Value 3',
+  searchOptionType4: 'Search Option Type 4',
+  searchOptionValue4: 'Search Option Value 4',
+  salePrice: 'Sale Price',
+  discountBasePrice: 'Discount Base Price',
+  stockQuantity: 'Stock Quantity',
+  leadTime: 'Lead Time',
+  maxPurchasePerPerson: 'Max Purchase Per Person',
+  maxPurchasePeriod: 'Max Purchase Period',
+  adultOnly: 'Adult Only',
+  taxable: 'Taxable',
+  parallelImport: 'Parallel Import',
+  overseasPurchase: 'Overseas Purchase',
+  vendorProductCode: 'Vendor Product Code',
+  modelNumber: 'Model Number',
+  barcode: 'Barcode',
+  certInfoType1: 'Cert Type 1',
+  certInfoValue1: 'Cert Value 1',
+  certInfoType2: 'Cert Type 2',
+  certInfoValue2: 'Cert Value 2',
+  certInfoType3: 'Cert Type 3',
+  certInfoValue3: 'Cert Value 3',
+  noticeCategory: 'Notice Category',
+  noticeValues: 'Notice Values',
+  mainImage: 'Main Image',
+  additionalImages: 'Additional Images',
+  conditionImages: 'Condition Images',
+  detailedDescription: 'Detailed Description',
+  documents: 'Documents',
 };

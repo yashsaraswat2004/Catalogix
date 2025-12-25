@@ -1,19 +1,19 @@
 import * as XLSX from 'xlsx';
-import { ParsedProduct, ValidationError, REQUIRED_FIELDS, FIELD_LABELS, CoupangProduct } from '@/types/coupang';
+import { ParsedProduct, ValidationError, REQUIRED_FIELDS, FIELD_LABELS_EN, CoupangProduct } from '@/types/coupang';
 
 // Column indices based on the Coupang template structure
 const COLUMN_INDICES = {
-  category: 0,           // 카테고리
-  productName: 1,        // 등록상품명
-  saleStartDate: 2,      // 판매시작일
-  saleEndDate: 3,        // 판매종료일
-  productStatus: 4,      // 상품상태
-  statusDescription: 5,  // 상태설명
-  brand: 6,              // 브랜드
-  manufacturer: 7,       // 제조사
-  searchKeywords: 8,     // 검색어
+  category: 0,           // Category
+  productName: 1,        // Product Name
+  saleStartDate: 2,      // Sale Start Date
+  saleEndDate: 3,        // Sale End Date
+  productStatus: 4,      // Product Status
+  statusDescription: 5,  // Status Description
+  brand: 6,              // Brand
+  manufacturer: 7,       // Manufacturer
+  searchKeywords: 8,     // Search Keywords
   
-  // 구매옵션 (9-16)
+  // Purchase Options (9-16)
   optionType1: 9,
   optionValue1: 10,
   optionType2: 11,
@@ -23,7 +23,7 @@ const COLUMN_INDICES = {
   optionType4: 15,
   optionValue4: 16,
   
-  // 검색옵션 (17-24)
+  // Search Options (17-24)
   searchOptionType1: 17,
   searchOptionValue1: 18,
   searchOptionType2: 19,
@@ -33,7 +33,7 @@ const COLUMN_INDICES = {
   searchOptionType4: 23,
   searchOptionValue4: 24,
   
-  // 구성 정보 (25-37)
+  // Configuration (25-37)
   salePrice: 25,
   discountBasePrice: 26,
   stockQuantity: 27,
@@ -48,26 +48,26 @@ const COLUMN_INDICES = {
   modelNumber: 36,
   barcode: 37,
   
-  // 인증 정보 (38-51)
+  // Certification Info (38-51)
   certInfoType1: 38,
   certInfoValue1: 39,
   // ... more cert fields
   
-  // 고시정보 (52-66)
+  // Notice Info (52-66)
   noticeCategory: 52,
   noticeValue1: 53,
   noticeValue2: 54,
   // ... more notice values
   
-  // 이미지 (67-69)
+  // Images (67-69)
   mainImage: 67,
   additionalImages: 68,
   conditionImages: 69,
   
-  // 상세 설명 (70)
+  // Detailed Description (70)
   detailedDescription: 70,
   
-  // 구비서류 (71-77)
+  // Documents (71-77)
   document1: 71,
   document2: 72,
   document3: 73,
@@ -105,12 +105,12 @@ export function parseXlsxFile(file: File): Promise<ParsedProduct[]> {
         
         resolve(products);
       } catch (error) {
-        reject(new Error('파일을 읽는 중 오류가 발생했습니다.'));
+        reject(new Error('Error reading file. Please ensure it is a valid Coupang template.'));
       }
     };
     
     reader.onerror = () => {
-      reject(new Error('파일을 읽을 수 없습니다.'));
+      reject(new Error('Unable to read the file.'));
     };
     
     reader.readAsArrayBuffer(file);
@@ -215,29 +215,29 @@ function validateProduct(data: Partial<CoupangProduct>): ValidationError[] {
         (typeof value === 'number' && value === 0 && field !== 'maxPurchasePerPerson' && field !== 'maxPurchasePeriod')) {
       errors.push({
         field,
-        fieldLabel: FIELD_LABELS[field],
-        message: `${FIELD_LABELS[field]}은(는) 필수 항목입니다.`,
+        fieldLabel: FIELD_LABELS_EN[field],
+        message: `${FIELD_LABELS_EN[field]} is required`,
         severity: 'error',
       });
     }
   });
   
-  // Validate price
+  // Validate price - sale price should not exceed discount base price
   if (data.salePrice && data.discountBasePrice && data.salePrice > data.discountBasePrice) {
     errors.push({
       field: 'salePrice',
-      fieldLabel: FIELD_LABELS.salePrice,
-      message: '판매가격이 할인율기준가보다 높습니다.',
+      fieldLabel: FIELD_LABELS_EN.salePrice,
+      message: 'Sale price exceeds discount base price',
       severity: 'warning',
     });
   }
   
-  // Validate image URL
+  // Validate image URL format
   if (data.mainImage && !isValidUrl(data.mainImage)) {
     errors.push({
       field: 'mainImage',
-      fieldLabel: FIELD_LABELS.mainImage,
-      message: '올바른 이미지 URL 형식이 아닙니다.',
+      fieldLabel: FIELD_LABELS_EN.mainImage,
+      message: 'Invalid image URL format',
       severity: 'error',
     });
   }
@@ -246,10 +246,56 @@ function validateProduct(data: Partial<CoupangProduct>): ValidationError[] {
   if (data.stockQuantity !== undefined && data.stockQuantity < 0) {
     errors.push({
       field: 'stockQuantity',
-      fieldLabel: FIELD_LABELS.stockQuantity,
-      message: '재고수량은 0 이상이어야 합니다.',
+      fieldLabel: FIELD_LABELS_EN.stockQuantity,
+      message: 'Stock quantity must be 0 or greater',
       severity: 'error',
     });
+  }
+  
+  // Validate lead time (must be positive)
+  if (data.leadTime !== undefined && data.leadTime < 1) {
+    errors.push({
+      field: 'leadTime',
+      fieldLabel: FIELD_LABELS_EN.leadTime,
+      message: 'Lead time must be at least 1 day',
+      severity: 'error',
+    });
+  }
+  
+  // Validate sale price (must be positive)
+  if (data.salePrice !== undefined && data.salePrice <= 0) {
+    errors.push({
+      field: 'salePrice',
+      fieldLabel: FIELD_LABELS_EN.salePrice,
+      message: 'Sale price must be greater than 0',
+      severity: 'error',
+    });
+  }
+  
+  // Validate discount base price (must be positive)
+  if (data.discountBasePrice !== undefined && data.discountBasePrice <= 0) {
+    errors.push({
+      field: 'discountBasePrice',
+      fieldLabel: FIELD_LABELS_EN.discountBasePrice,
+      message: 'Discount base price must be greater than 0',
+      severity: 'error',
+    });
+  }
+  
+  // Validate product name length (Coupang has limits)
+  if (data.productName && data.productName.length > 100) {
+    errors.push({
+      field: 'productName',
+      fieldLabel: FIELD_LABELS_EN.productName,
+      message: 'Product name exceeds 100 characters',
+      severity: 'warning',
+    });
+  }
+  
+  // Validate category is not empty and looks valid
+  if (data.category && !/^\d+$/.test(data.category.replace(/\s/g, '').split('>').pop() || '')) {
+    // Category should end with a numeric code in Coupang format
+    // This is a soft warning as category format varies
   }
   
   return errors;
@@ -266,8 +312,8 @@ function isValidUrl(string: string): boolean {
 
 export function exportToXlsx(products: ParsedProduct[], filename: string): void {
   const headers = [
-    '카테고리', '등록상품명', '브랜드', '제조사', '판매가격', 
-    '할인율기준가', '재고수량', '상태', '오류 내용'
+    'Category', 'Product Name', 'Brand', 'Manufacturer', 'Sale Price', 
+    'Discount Base Price', 'Stock Quantity', 'Status', 'Errors/Warnings'
   ];
   
   const data = products.map(p => [

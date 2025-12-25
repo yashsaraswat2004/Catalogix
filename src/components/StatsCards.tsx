@@ -1,4 +1,4 @@
-import { Package, TrendingUp, AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Package, TrendingUp, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ParsedProduct } from '@/types/coupang';
 
@@ -18,35 +18,35 @@ export function StatsCards({ products }: StatsCardsProps) {
 
   const cards = [
     {
-      label: '전체 상품',
+      label: 'Total Products',
       value: stats.total,
       icon: Package,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
     {
-      label: '검증 완료',
+      label: 'Validated',
       value: stats.validated,
       icon: CheckCircle,
       color: 'text-success',
       bgColor: 'bg-success/10',
     },
     {
-      label: '검증 오류',
+      label: 'Validation Errors',
       value: stats.errors,
       icon: AlertTriangle,
       color: 'text-warning',
       bgColor: 'bg-warning/10',
     },
     {
-      label: '업로드 성공',
+      label: 'Upload Success',
       value: stats.success,
       icon: TrendingUp,
       color: 'text-success',
       bgColor: 'bg-success/10',
     },
     {
-      label: '업로드 실패',
+      label: 'Upload Failed',
       value: stats.failed,
       icon: XCircle,
       color: 'text-destructive',
