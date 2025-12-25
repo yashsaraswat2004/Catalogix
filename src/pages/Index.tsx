@@ -5,6 +5,7 @@ import { ApiSettings } from '@/components/ApiSettings';
 import { WingSettingsForm } from '@/components/WingSettings';
 import { StatsCards } from '@/components/StatsCards';
 import { UploadProgress } from '@/components/UploadProgress';
+import { BackendModeToggle } from '@/components/BackendModeToggle';
 import { ParsedProduct, CoupangApiCredentials, WingSettings, REQUIRED_WING_SETTINGS } from '@/types/coupang';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -348,6 +349,7 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <BackendModeToggle />
             {credentialsValidated && (
               <div className="flex items-center gap-1.5 text-sm text-green-600">
                 <CheckCircle2 className="w-4 h-4" />
