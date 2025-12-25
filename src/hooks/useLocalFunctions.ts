@@ -1,11 +1,19 @@
 // Helper for local edge function development
 // When running `supabase functions serve`, use this to call local functions
 
-const USE_LOCAL_FUNCTIONS = import.meta.env.VITE_USE_LOCAL_FUNCTIONS === 'true';
 const LOCAL_FUNCTIONS_URL = 'http://localhost:54321/functions/v1';
 
+// Get the current backend mode from localStorage
+function getBackendMode(): 'cloud' | 'local' {
+  if (typeof window === 'undefined') return 'cloud';
+  const saved = localStorage.getItem('coupang_backend_mode');
+  return saved === 'local' ? 'local' : 'cloud';
+}
+
 export async function invokeFunction(functionName: string, body: any) {
-  if (USE_LOCAL_FUNCTIONS) {
+  const useLocal = getBackendMode() === 'local';
+  
+  if (useLocal) {
     console.log(`[Local] Calling local function: ${functionName}`);
     const response = await fetch(`${LOCAL_FUNCTIONS_URL}/${functionName}`, {
       method: 'POST',
@@ -29,5 +37,5 @@ export async function invokeFunction(functionName: string, body: any) {
 }
 
 export function isUsingLocalFunctions() {
-  return USE_LOCAL_FUNCTIONS;
+  return getBackendMode() === 'local';
 }
