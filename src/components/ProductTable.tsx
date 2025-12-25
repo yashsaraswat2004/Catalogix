@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ParsedProduct, FIELD_LABELS } from '@/types/coupang';
+import { ParsedProduct, FIELD_LABELS_EN } from '@/types/coupang';
 import { 
   Table, 
   TableBody, 
@@ -22,11 +22,6 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import {
   Collapsible,
   CollapsibleContent,
@@ -93,45 +88,45 @@ export function ProductTable({ products, selectedIds, onSelectionChange }: Produ
       case 'validated':
         return (
           <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-            검증완료
+            Validated
           </Badge>
         );
       case 'uploading':
         return (
           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-            업로드 중
+            Uploading
           </Badge>
         );
       case 'success':
         return (
           <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-            성공
+            Success
           </Badge>
         );
       case 'error':
         return (
           <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
-            실패
+            Failed
           </Badge>
         );
       default:
         if (hasErrors) {
           return (
             <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
-              오류 {product.validationErrors.filter(e => e.severity === 'error').length}건
+              {product.validationErrors.filter(e => e.severity === 'error').length} Error(s)
             </Badge>
           );
         }
         if (hasWarnings) {
           return (
             <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
-              경고 {product.validationErrors.filter(e => e.severity === 'warning').length}건
+              {product.validationErrors.filter(e => e.severity === 'warning').length} Warning(s)
             </Badge>
           );
         }
         return (
           <Badge variant="outline" className="bg-muted text-muted-foreground">
-            대기
+            Pending
           </Badge>
         );
     }
@@ -146,7 +141,7 @@ export function ProductTable({ products, selectedIds, onSelectionChange }: Produ
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
         <ImageIcon className="w-12 h-12 mb-4 opacity-50" />
-        <p>업로드된 상품이 없습니다</p>
+        <p>No products uploaded</p>
       </div>
     );
   }
@@ -164,12 +159,12 @@ export function ProductTable({ products, selectedIds, onSelectionChange }: Produ
                 />
               </TableHead>
               <TableHead className="w-12"></TableHead>
-              <TableHead className="w-12">행</TableHead>
-              <TableHead className="min-w-[200px]">상품명</TableHead>
-              <TableHead className="min-w-[100px]">브랜드</TableHead>
-              <TableHead className="min-w-[100px] text-right">판매가</TableHead>
-              <TableHead className="min-w-[80px] text-right">재고</TableHead>
-              <TableHead className="min-w-[100px]">상태</TableHead>
+              <TableHead className="w-12">Row</TableHead>
+              <TableHead className="min-w-[200px]">Product Name</TableHead>
+              <TableHead className="min-w-[100px]">Brand</TableHead>
+              <TableHead className="min-w-[100px] text-right">Sale Price</TableHead>
+              <TableHead className="min-w-[80px] text-right">Stock</TableHead>
+              <TableHead className="min-w-[100px]">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -236,18 +231,18 @@ export function ProductTable({ products, selectedIds, onSelectionChange }: Produ
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {/* Basic Info */}
                           <div className="space-y-2">
-                            <h4 className="text-sm font-semibold text-foreground">기본정보</h4>
+                            <h4 className="text-sm font-semibold text-foreground">Basic Information</h4>
                             <dl className="text-sm space-y-1">
                               <div className="flex justify-between">
-                                <dt className="text-muted-foreground">카테고리</dt>
+                                <dt className="text-muted-foreground">Category</dt>
                                 <dd className="font-medium">{product.data.category || '-'}</dd>
                               </div>
                               <div className="flex justify-between">
-                                <dt className="text-muted-foreground">제조사</dt>
+                                <dt className="text-muted-foreground">Manufacturer</dt>
                                 <dd className="font-medium">{product.data.manufacturer || '-'}</dd>
                               </div>
                               <div className="flex justify-between">
-                                <dt className="text-muted-foreground">모델번호</dt>
+                                <dt className="text-muted-foreground">Model Number</dt>
                                 <dd className="font-medium">{product.data.modelNumber || '-'}</dd>
                               </div>
                             </dl>
@@ -255,15 +250,15 @@ export function ProductTable({ products, selectedIds, onSelectionChange }: Produ
 
                           {/* Pricing */}
                           <div className="space-y-2">
-                            <h4 className="text-sm font-semibold text-foreground">가격정보</h4>
+                            <h4 className="text-sm font-semibold text-foreground">Pricing Information</h4>
                             <dl className="text-sm space-y-1">
                               <div className="flex justify-between">
-                                <dt className="text-muted-foreground">할인기준가</dt>
+                                <dt className="text-muted-foreground">Discount Base Price</dt>
                                 <dd className="font-medium">{formatPrice(product.data.discountBasePrice)}</dd>
                               </div>
                               <div className="flex justify-between">
-                                <dt className="text-muted-foreground">출고리드타임</dt>
-                                <dd className="font-medium">{product.data.leadTime ?? '-'}일</dd>
+                                <dt className="text-muted-foreground">Lead Time</dt>
+                                <dd className="font-medium">{product.data.leadTime ?? '-'} days</dd>
                               </div>
                             </dl>
                           </div>
@@ -271,7 +266,7 @@ export function ProductTable({ products, selectedIds, onSelectionChange }: Produ
                           {/* Validation Errors */}
                           {product.validationErrors.length > 0 && (
                             <div className="space-y-2 md:col-span-2 lg:col-span-1">
-                              <h4 className="text-sm font-semibold text-foreground">검증 결과</h4>
+                              <h4 className="text-sm font-semibold text-foreground">Validation Results</h4>
                               <ul className="space-y-1">
                                 {product.validationErrors.map((error, i) => (
                                   <li key={i} className="flex items-start gap-2 text-sm">
@@ -305,7 +300,7 @@ export function ProductTable({ products, selectedIds, onSelectionChange }: Produ
                             <div className="col-span-full">
                               <div className="p-3 rounded-lg bg-success/10 border border-success/20">
                                 <p className="text-sm text-success">
-                                  쿠팡 상품 ID: <span className="font-mono">{product.coupangProductId}</span>
+                                  Coupang Product ID: <span className="font-mono">{product.coupangProductId}</span>
                                 </p>
                               </div>
                             </div>

@@ -6,7 +6,7 @@ import { StatsCards } from '@/components/StatsCards';
 import { ParsedProduct, CoupangApiCredentials } from '@/types/coupang';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Download, RefreshCw, Package } from 'lucide-react';
+import { Upload, Download, RefreshCw, Package, Shield, AlertTriangle } from 'lucide-react';
 import { exportToXlsx } from '@/lib/xlsxParser';
 
 const Index = () => {
@@ -33,8 +33,8 @@ const Index = () => {
     setCredentials(creds);
     localStorage.setItem('coupang_credentials', JSON.stringify(creds));
     toast({
-      title: "API 설정 저장됨",
-      description: "쿠팡 API 자격증명이 저장되었습니다.",
+      title: "API Settings Saved",
+      description: "Your Coupang API credentials have been saved securely.",
     });
   };
 
@@ -47,16 +47,16 @@ const Index = () => {
     const validCount = parsedProducts.length - errorCount;
     
     toast({
-      title: "파일 분석 완료",
-      description: `${parsedProducts.length}개 상품 중 ${validCount}개 검증 완료, ${errorCount}개 오류 발견`,
+      title: "File Analysis Complete",
+      description: `${parsedProducts.length} products found. ${validCount} validated, ${errorCount} have errors.`,
     });
   };
 
   const handleUpload = async () => {
     if (!credentials) {
       toast({
-        title: "API 설정 필요",
-        description: "먼저 쿠팡 API 설정을 완료해주세요.",
+        title: "API Settings Required",
+        description: "Please configure your Coupang API settings first.",
         variant: "destructive",
       });
       return;
@@ -69,37 +69,30 @@ const Index = () => {
 
     if (toUpload.length === 0) {
       toast({
-        title: "업로드할 상품 없음",
-        description: "오류가 없는 상품을 선택해주세요.",
+        title: "No Products to Upload",
+        description: "Please select products without validation errors.",
         variant: "destructive",
       });
       return;
     }
 
-    setIsUploading(true);
-    
+    // SAFETY CHECK: Block upload until backend is ready
     toast({
-      title: "업로드 준비 중",
-      description: `${toUpload.length}개 상품을 쿠팡에 등록합니다. 백엔드 연결이 필요합니다.`,
+      title: "Backend Integration Required",
+      description: "The Coupang API integration is being developed. Do not attempt uploads until fully tested.",
+      variant: "destructive",
     });
-
-    // Note: Actual API upload requires backend edge function
-    // For now, simulate the process
-    setTimeout(() => {
-      setIsUploading(false);
-      toast({
-        title: "백엔드 연결 필요",
-        description: "Lovable Cloud를 연결하여 쿠팡 API와 통신하세요.",
-      });
-    }, 1500);
+    
+    // Note: Actual API upload will be implemented with edge function
+    // Currently blocked to prevent any accidental API calls
   };
 
   const handleExport = () => {
     if (products.length === 0) return;
     exportToXlsx(products, `upload_result_${new Date().toISOString().slice(0,10)}.xlsx`);
     toast({
-      title: "내보내기 완료",
-      description: "결과 파일이 다운로드되었습니다.",
+      title: "Export Complete",
+      description: "Result file has been downloaded.",
     });
   };
 
@@ -124,24 +117,35 @@ const Index = () => {
               <Package className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-lg font-bold">쿠팡 대량 등록</h1>
-              <p className="text-xs text-muted-foreground">Coupang Bulk Uploader</p>
+              <h1 className="text-lg font-bold">Coupang Bulk Uploader</h1>
+              <p className="text-xs text-muted-foreground">Product Registration Tool</p>
             </div>
           </div>
           <ApiSettings credentials={credentials} onSave={handleCredentialsSave} />
         </div>
       </header>
 
+      {/* Safety Banner */}
+      <div className="bg-warning/10 border-b border-warning/30 px-4 py-3">
+        <div className="container flex items-center gap-3 text-warning">
+          <Shield className="w-5 h-5 flex-shrink-0" />
+          <p className="text-sm">
+            <strong>Safety Mode Active:</strong> All products are validated locally before any API calls. 
+            Upload functionality is currently disabled while backend integration is being developed.
+          </p>
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="container px-4 md:px-8 py-8 space-y-8">
         {/* Upload Section */}
         <section className="animate-fade-in">
           <div className="glass-card p-6">
-            <h2 className="text-lg font-semibold mb-4">파일 업로드</h2>
+            <h2 className="text-lg font-semibold mb-4">File Upload</h2>
             <FileUpload onFileParsed={handleFileParsed} isProcessing={isUploading} />
             {fileName && (
               <p className="mt-3 text-sm text-muted-foreground">
-                현재 파일: <span className="font-medium text-foreground">{fileName}</span>
+                Current file: <span className="font-medium text-foreground">{fileName}</span>
               </p>
             )}
           </div>
@@ -159,19 +163,19 @@ const Index = () => {
           <section className="animate-fade-in" style={{ animationDelay: '200ms' }}>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
               <div>
-                <h2 className="text-lg font-semibold">상품 목록</h2>
+                <h2 className="text-lg font-semibold">Product List</h2>
                 <p className="text-sm text-muted-foreground">
-                  {selectedIds.size}개 선택됨 ({selectedValidCount}개 업로드 가능)
+                  {selectedIds.size} selected ({selectedValidCount} ready for upload)
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={handleClear}>
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  초기화
+                  Clear
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleExport}>
                   <Download className="w-4 h-4 mr-2" />
-                  결과 내보내기
+                  Export Results
                 </Button>
                 <Button 
                   size="sm" 
@@ -180,7 +184,7 @@ const Index = () => {
                   className="gradient-primary text-primary-foreground"
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  {isUploading ? '업로드 중...' : `쿠팡 등록 (${selectedValidCount})`}
+                  {isUploading ? 'Uploading...' : `Upload to Coupang (${selectedValidCount})`}
                 </Button>
               </div>
             </div>
@@ -198,10 +202,10 @@ const Index = () => {
             <div className="w-20 h-20 mx-auto rounded-2xl bg-muted flex items-center justify-center mb-6">
               <Package className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">상품 파일을 업로드하세요</h3>
+            <h3 className="text-xl font-semibold mb-2">Upload Your Product File</h3>
             <p className="text-muted-foreground max-w-md mx-auto">
-              쿠팡 WING에서 다운로드한 XLSM 또는 CSV 파일을 업로드하면 
-              자동으로 검증 후 대량 등록할 수 있습니다.
+              Upload the XLSM or CSV file downloaded from Coupang WING. 
+              Products will be validated automatically before any upload attempts.
             </p>
           </section>
         )}

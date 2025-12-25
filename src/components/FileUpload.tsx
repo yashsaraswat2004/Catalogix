@@ -21,16 +21,9 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
     if (!file) return;
 
     // Validate file type
-    const validTypes = [
-      'application/vnd.ms-excel.sheet.macroEnabled.12',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-      'text/csv'
-    ];
-    
     const extension = file.name.split('.').pop()?.toLowerCase();
     if (!['xlsx', 'xlsm', 'xls', 'csv'].includes(extension || '')) {
-      setError('지원하지 않는 파일 형식입니다. XLSX, XLSM, XLS, CSV 파일만 가능합니다.');
+      setError('Unsupported file format. Only XLSX, XLSM, XLS, CSV files are allowed.');
       return;
     }
 
@@ -41,13 +34,13 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
     try {
       const products = await parseXlsxFile(file);
       if (products.length === 0) {
-        setError('파일에 상품 데이터가 없습니다.');
+        setError('No product data found in the file.');
         setIsParsing(false);
         return;
       }
       onFileParsed(products, file.name);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '파일 처리 중 오류가 발생했습니다.');
+      setError(err instanceof Error ? err.message : 'Error processing file.');
     } finally {
       setIsParsing(false);
     }
@@ -112,7 +105,7 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
             {isParsing && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                파일 분석 중...
+                Analyzing file...
               </div>
             )}
           </div>
@@ -129,10 +122,10 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
             </div>
             <div className="text-center">
               <p className="font-medium text-foreground">
-                {isDragActive ? '파일을 놓아주세요' : '파일을 드래그하거나 클릭하세요'}
+                {isDragActive ? 'Drop the file here' : 'Drag & drop or click to upload'}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                XLSX, XLSM, CSV 파일 지원
+                Supports XLSX, XLSM, CSV files
               </p>
             </div>
           </div>

@@ -34,15 +34,15 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
     const newErrors: Partial<CoupangApiCredentials> = {};
     
     if (!formData.accessKey.trim()) {
-      newErrors.accessKey = 'Access Key는 필수입니다';
+      newErrors.accessKey = 'Access Key is required';
     }
     if (!formData.secretKey.trim()) {
-      newErrors.secretKey = 'Secret Key는 필수입니다';
+      newErrors.secretKey = 'Secret Key is required';
     }
     if (!formData.vendorId.trim()) {
-      newErrors.vendorId = 'Vendor ID는 필수입니다';
+      newErrors.vendorId = 'Vendor ID is required';
     } else if (!formData.vendorId.startsWith('A')) {
-      newErrors.vendorId = 'Vendor ID는 A로 시작해야 합니다';
+      newErrors.vendorId = 'Vendor ID must start with A';
     }
 
     setErrors(newErrors);
@@ -71,12 +71,12 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
           {isConfigured ? (
             <>
               <CheckCircle2 className="w-4 h-4" />
-              API 연결됨
+              API Connected
             </>
           ) : (
             <>
               <Settings className="w-4 h-4" />
-              API 설정
+              API Settings
             </>
           )}
         </Button>
@@ -85,10 +85,10 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-primary" />
-            쿠팡 API 설정
+            Coupang API Settings
           </DialogTitle>
           <DialogDescription>
-            쿠팡 WING에서 발급받은 API 키를 입력하세요. 키는 브라우저에만 저장됩니다.
+            Enter your API keys from Coupang WING. Keys are stored locally in your browser only.
           </DialogDescription>
         </DialogHeader>
         
@@ -114,7 +114,7 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
             <Label htmlFor="accessKey">Access Key</Label>
             <Input
               id="accessKey"
-              placeholder="발급받은 Access Key 입력"
+              placeholder="Enter your Access Key"
               value={formData.accessKey}
               onChange={(e) => setFormData(prev => ({ ...prev, accessKey: e.target.value }))}
               className={cn(errors.accessKey && "border-destructive")}
@@ -133,7 +133,7 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
               <Input
                 id="secretKey"
                 type={showSecretKey ? "text" : "password"}
-                placeholder="발급받은 Secret Key 입력"
+                placeholder="Enter your Secret Key"
                 value={formData.secretKey}
                 onChange={(e) => setFormData(prev => ({ ...prev, secretKey: e.target.value }))}
                 className={cn("pr-10", errors.secretKey && "border-destructive")}
@@ -156,18 +156,18 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
 
           <div className="p-3 rounded-lg bg-muted/50 border border-border">
             <p className="text-xs text-muted-foreground">
-              <strong>안내:</strong> API 키는 쿠팡 WING &gt; 판매자정보 &gt; Open API에서 발급받을 수 있습니다.
-              보안을 위해 키는 로컬 스토리지에만 저장되며 서버로 전송되지 않습니다.
+              <strong>Note:</strong> You can get API keys from Coupang WING &gt; Seller Info &gt; Open API.
+              For security, keys are stored only in local storage and never sent to our servers.
             </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
-            취소
+            Cancel
           </Button>
           <Button onClick={handleSave} className="gradient-primary text-primary-foreground">
-            저장
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>
