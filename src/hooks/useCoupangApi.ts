@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { CoupangApiCredentials, ParsedProduct, WingSettings } from '@/types/coupang';
+import { invokeFunction, isUsingLocalFunctions } from '@/hooks/useLocalFunctions';
 
 export interface UploadResult {
   productIndex: number;
@@ -29,22 +29,30 @@ export function useCoupangApi() {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Log which mode we're using
+  const logMode = () => {
+    if (isUsingLocalFunctions()) {
+      console.log('[CoupangAPI] Using LOCAL edge functions (your IP)');
+    } else {
+      console.log('[CoupangAPI] Using CLOUD edge functions (Lovable Cloud IPs)');
+    }
+  };
+
   // Validate API credentials
   const validateCredentials = useCallback(async (
     credentials: CoupangApiCredentials
   ): Promise<{ valid: boolean; message: string }> => {
     setIsValidating(true);
     setError(null);
+    logMode();
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('coupang-api', {
-        body: {
-          action: 'validate',
-          credentials: {
-            accessKey: credentials.accessKey,
-            secretKey: credentials.secretKey,
-            vendorId: credentials.vendorId,
-          },
+      const { data, error: fnError } = await invokeFunction('coupang-api', {
+        action: 'validate',
+        credentials: {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
         },
       });
 
@@ -72,22 +80,21 @@ export function useCoupangApi() {
   ): Promise<BatchUploadResponse> => {
     setIsValidating(true);
     setError(null);
+    logMode();
 
     try {
       const productData = products.map(p => p.data);
 
-      const { data, error: fnError } = await supabase.functions.invoke('coupang-api', {
-        body: {
-          action: 'upload',
-          credentials: {
-            accessKey: credentials.accessKey,
-            secretKey: credentials.secretKey,
-            vendorId: credentials.vendorId,
-          },
-          wingSettings,
-          products: productData,
-          dryRun: true,
+      const { data, error: fnError } = await invokeFunction('coupang-api', {
+        action: 'upload',
+        credentials: {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
         },
+        wingSettings,
+        products: productData,
+        dryRun: true,
       });
 
       if (fnError) {
@@ -115,6 +122,7 @@ export function useCoupangApi() {
   ): Promise<BatchUploadResponse> => {
     setIsUploading(true);
     setError(null);
+    logMode();
 
     try {
       const productData = products.map(p => p.data);
@@ -122,18 +130,16 @@ export function useCoupangApi() {
       // Report initial progress
       onProgress?.(0, products.length);
 
-      const { data, error: fnError } = await supabase.functions.invoke('coupang-api', {
-        body: {
-          action: 'upload',
-          credentials: {
-            accessKey: credentials.accessKey,
-            secretKey: credentials.secretKey,
-            vendorId: credentials.vendorId,
-          },
-          wingSettings,
-          products: productData,
-          dryRun: false,
+      const { data, error: fnError } = await invokeFunction('coupang-api', {
+        action: 'upload',
+        credentials: {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
         },
+        wingSettings,
+        products: productData,
+        dryRun: false,
       });
 
       if (fnError) {
@@ -161,16 +167,15 @@ export function useCoupangApi() {
   ): Promise<{ success: boolean; message: string }> => {
     setIsValidating(true);
     setError(null);
+    logMode();
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('coupang-api', {
-        body: {
-          action: 'test-signature',
-          credentials: {
-            accessKey: credentials.accessKey,
-            secretKey: credentials.secretKey,
-            vendorId: credentials.vendorId,
-          },
+      const { data, error: fnError } = await invokeFunction('coupang-api', {
+        action: 'test-signature',
+        credentials: {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
         },
       });
 
@@ -201,16 +206,15 @@ export function useCoupangApi() {
   }> => {
     setIsValidating(true);
     setError(null);
+    logMode();
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('coupang-api', {
-        body: {
-          action: 'fetch-shipping-centers',
-          credentials: {
-            accessKey: credentials.accessKey,
-            secretKey: credentials.secretKey,
-            vendorId: credentials.vendorId,
-          },
+      const { data, error: fnError } = await invokeFunction('coupang-api', {
+        action: 'fetch-shipping-centers',
+        credentials: {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
         },
       });
 
@@ -239,6 +243,7 @@ export function useCoupangApi() {
     isValidating,
     isUploading,
     error,
+    isLocalMode: isUsingLocalFunctions(),
     validateCredentials,
     dryRun,
     uploadProducts,
