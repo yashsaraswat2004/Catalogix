@@ -90,6 +90,10 @@ const Index = () => {
     });
   };
 
+  const handleProductUpdate = (updatedProduct: ParsedProduct) => {
+    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+  };
+
   const getProductsToUpload = () => {
     return products.filter(p => 
       selectedIds.has(p.id) && 
@@ -372,6 +376,7 @@ const Index = () => {
               products={products} 
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
+              onProductUpdate={handleProductUpdate}
             />
           </section>
         )}

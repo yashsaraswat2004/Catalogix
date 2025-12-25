@@ -86,7 +86,37 @@ export interface ValidationError {
   fieldLabel: string;
   message: string;
   severity: 'error' | 'warning';
+  cellReference?: string;  // Excel cell reference like "A4", "Z10"
+  columnIndex?: number;    // 0-based column index
 }
+
+// Excel column letter conversion helper
+export function getExcelColumnLetter(index: number): string {
+  let result = '';
+  while (index >= 0) {
+    result = String.fromCharCode((index % 26) + 65) + result;
+    index = Math.floor(index / 26) - 1;
+  }
+  return result;
+}
+
+// Editable fields that users can modify in the platform
+export const EDITABLE_FIELDS: (keyof CoupangProduct)[] = [
+  'productName',
+  'brand',
+  'manufacturer',
+  'salePrice',
+  'discountBasePrice',
+  'stockQuantity',
+  'leadTime',
+  'maxPurchasePerPerson',
+  'maxPurchasePeriod',
+  'vendorProductCode',
+  'modelNumber',
+  'barcode',
+  'mainImage',
+  'detailedDescription',
+];
 
 export interface UploadSession {
   id: string;
