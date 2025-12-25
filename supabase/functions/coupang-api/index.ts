@@ -239,7 +239,7 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     returnCharge: Math.round(wingSettings.returnCharge || 2500),
     outboundShippingPlaceCode: parseInt(wingSettings.outboundShippingPlaceCode) || 0,
     vendorUserId: wingSettings.vendorUserId || "",
-    requested: false, // Always false initially for safety - product will be in draft state
+    requested: true, // Auto-submit for approval - products go live after Coupang approves
     items: [item],
     requiredDocuments: [],
     extraInfoMessage: "",
