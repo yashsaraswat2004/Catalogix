@@ -6,6 +6,7 @@ const corsHeaders = {
 };
 
 // HMAC-SHA256 signature generation following Coupang's exact specification
+// Reference: https://developers.coupangcorp.com/hc/en-us/articles/360033461914-Creating-HMAC-Signature
 async function generateHmacSignature(
   method: string,
   path: string,
@@ -13,7 +14,7 @@ async function generateHmacSignature(
   secretKey: string,
   accessKey: string
 ): Promise<{ authorization: string; datetime: string }> {
-  // Generate datetime in exact format: yymmddTHHMMSSZ (UTC)
+  // Generate datetime in exact format: yyMMdd'T'HHmmss'Z' (UTC)
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
   const datetime = `${now.getUTCFullYear().toString().slice(2)}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
@@ -21,7 +22,7 @@ async function generateHmacSignature(
   // Create the message to sign: datetime + method + path + query
   const message = datetime + method + path + query;
   
-  console.log('[HMAC] Generating signature for message:', { datetime, method, path, queryLength: query.length });
+  console.log('[HMAC] Generating signature:', { datetime, method, path, queryLength: query.length });
 
   // Generate HMAC-SHA256 signature
   const encoder = new TextEncoder();
@@ -39,61 +40,94 @@ async function generateHmacSignature(
     .join('');
 
   // Create authorization header in exact format
+  // Format: "CEA algorithm=HmacSHA256, access-key={accessKey}, signed-date={datetime}, signature={signature}"
   const authorization = `CEA algorithm=HmacSHA256, access-key=${accessKey}, signed-date=${datetime}, signature=${signature}`;
   
   return { authorization, datetime };
 }
 
-// Product payload transformer - converts our format to Coupang API format
-function transformProductToCoupangFormat(product: any, vendorId: string): any {
-  // Extract category code from the full category string
-  const categoryCode = product.category?.split('>').pop()?.trim() || product.category;
-  
-  // Build items array (for options/variants)
-  const items = [];
-  
-  // Single item for products without options
-  const item: any = {
-    itemName: product.productName,
-    originalPrice: product.discountBasePrice || product.salePrice,
-    salePrice: product.salePrice,
-    maximumBuyCount: product.maxPurchasePerPerson || 0,
-    maximumBuyForPerson: product.maxPurchasePerPerson || 0,
-    maximumBuyForPersonPeriod: product.maxPurchasePeriod || 1,
-    unitCount: 1,
-    adultOnly: product.adultOnly ? "ADULT_ONLY" : "EVERYONE",
-    taxType: product.taxable ? "TAX" : "FREE",
-    parallelImported: product.parallelImport ? "PARALLEL_IMPORTED" : "NOT_PARALLEL_IMPORTED",
-    overseasPurchased: product.overseasPurchase ? "OVERSEAS_PURCHASED" : "NOT_OVERSEAS_PURCHASED",
-    vendorItemId: product.vendorProductCode || `ITEM-${Date.now()}`,
-    modelNo: product.modelNumber || "",
-    barcode: product.barcode || "",
-    images: [
-      {
-        imageOrder: 0,
-        imageType: "REPRESENTATION",
-        vendorPath: product.mainImage
+// Transform internal product format to exact Coupang API format
+// Reference: https://developers.coupangcorp.com/hc/en-us/articles/360033877853-Product-Creation
+function transformProductToCoupangFormat(product: any, vendorId: string, wingSettings: any): any {
+  // Extract category code - if it's a path like "123>456>789", take the last one
+  let categoryCode = 0;
+  if (product.category) {
+    const parts = product.category.toString().split('>');
+    const lastPart = parts[parts.length - 1].trim();
+    categoryCode = parseInt(lastPart) || 0;
+  }
+
+  // Format dates to Coupang format: yyyy-MM-dd'T'HH:mm:ss
+  const formatDate = (dateStr: string, isEnd: boolean = false): string => {
+    if (!dateStr) {
+      const now = new Date();
+      if (isEnd) {
+        return "2099-12-31T23:59:59";
       }
-    ],
-    contents: [
-      {
-        contentsType: "TEXT",
-        contentDetails: [
-          {
-            content: product.detailedDescription || product.productName,
-            detailType: "TEXT"
-          }
-        ]
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T00:00:00`;
+    }
+    // Try to parse the date
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        return isEnd ? "2099-12-31T23:59:59" : new Date().toISOString().split('T')[0] + "T00:00:00";
       }
-    ],
-    attributes: []
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${isEnd ? '23:59:59' : '00:00:00'}`;
+    } catch {
+      return isEnd ? "2099-12-31T23:59:59" : new Date().toISOString().split('T')[0] + "T00:00:00";
+    }
   };
 
-  // Add additional images if present
+  // Build attributes array from product options
+  const attributes: any[] = [];
+  if (product.optionType1 && product.optionValue1) {
+    attributes.push({
+      attributeTypeName: product.optionType1.substring(0, 25),
+      attributeValueName: product.optionValue1.substring(0, 30)
+    });
+  }
+  if (product.optionType2 && product.optionValue2) {
+    attributes.push({
+      attributeTypeName: product.optionType2.substring(0, 25),
+      attributeValueName: product.optionValue2.substring(0, 30)
+    });
+  }
+  if (product.optionType3 && product.optionValue3) {
+    attributes.push({
+      attributeTypeName: product.optionType3.substring(0, 25),
+      attributeValueName: product.optionValue3.substring(0, 30)
+    });
+  }
+  if (product.optionType4 && product.optionValue4) {
+    attributes.push({
+      attributeTypeName: product.optionType4.substring(0, 25),
+      attributeValueName: product.optionValue4.substring(0, 30)
+    });
+  }
+
+  // If no attributes, create a default one (required by Coupang)
+  if (attributes.length === 0) {
+    attributes.push({
+      attributeTypeName: "수량",
+      attributeValueName: "1개"
+    });
+  }
+
+  // Build images array
+  const images: any[] = [];
+  if (product.mainImage) {
+    images.push({
+      imageOrder: 0,
+      imageType: "REPRESENTATION",
+      vendorPath: product.mainImage.trim()
+    });
+  }
+  
+  // Add additional images (up to 9 DETAIL images)
   if (product.additionalImages && Array.isArray(product.additionalImages)) {
-    product.additionalImages.forEach((img: string, idx: number) => {
+    product.additionalImages.slice(0, 9).forEach((img: string, idx: number) => {
       if (img && img.trim()) {
-        item.images.push({
+        images.push({
           imageOrder: idx + 1,
           imageType: "DETAIL",
           vendorPath: img.trim()
@@ -102,59 +136,155 @@ function transformProductToCoupangFormat(product: any, vendorId: string): any {
     });
   }
 
-  // Add search options as attributes if present
-  if (product.optionType1 && product.optionValue1) {
-    item.attributes.push({
-      attributeTypeName: product.optionType1,
-      attributeValueName: product.optionValue1
-    });
-  }
-  if (product.optionType2 && product.optionValue2) {
-    item.attributes.push({
-      attributeTypeName: product.optionType2,
-      attributeValueName: product.optionValue2
+  // Build contents array for product description
+  const contents: any[] = [];
+  if (product.detailedDescription) {
+    // Check if description is HTML
+    const isHtml = /<[^>]+>/.test(product.detailedDescription);
+    contents.push({
+      contentsType: isHtml ? "HTML" : "TEXT",
+      contentDetails: [{
+        content: product.detailedDescription,
+        detailType: "TEXT"
+      }]
     });
   }
 
-  items.push(item);
+  // Build search tags from keywords
+  const searchTags: string[] = [];
+  if (product.searchKeywords) {
+    const keywords = product.searchKeywords.split(',').map((k: string) => k.trim()).filter((k: string) => k);
+    keywords.slice(0, 20).forEach((keyword: string) => {
+      if (keyword.length <= 20) {
+        searchTags.push(keyword);
+      }
+    });
+  }
 
-  // Build the full product payload
-  return {
-    displayCategoryCode: parseInt(categoryCode) || 0,
-    sellerProductName: product.productName,
+  // Build certification info
+  const certifications: any[] = [];
+  if (product.certInfoType1) {
+    certifications.push({
+      certificationType: product.certInfoType1,
+      certificationCode: product.certInfoValue1 || ""
+    });
+  } else {
+    // Default: certification not required
+    certifications.push({
+      certificationType: "NOT_REQUIRED",
+      certificationCode: ""
+    });
+  }
+
+  // Build the single item
+  const item = {
+    itemName: (product.productName || "Product").substring(0, 150),
+    originalPrice: Math.round(product.discountBasePrice || product.salePrice || 0),
+    salePrice: Math.round(product.salePrice || 0),
+    maximumBuyCount: Math.min(Math.round(product.stockQuantity || 100), 99999),
+    maximumBuyForPerson: Math.round(product.maxPurchasePerPerson || 0),
+    maximumBuyForPersonPeriod: Math.round(product.maxPurchasePeriod || 1) || 1,
+    outboundShippingTimeDay: Math.round(product.leadTime || 1) || 1,
+    unitCount: 1,
+    adultOnly: product.adultOnly ? "ADULT_ONLY" : "EVERYONE",
+    taxType: product.taxable === false ? "FREE" : "TAX",
+    parallelImported: product.parallelImport ? "PARALLEL_IMPORTED" : "NOT_PARALLEL_IMPORTED",
+    overseasPurchased: product.overseasPurchase ? "OVERSEAS_PURCHASED" : "NOT_OVERSEAS_PURCHASED",
+    pccNeeded: product.overseasPurchase ? true : false,
+    externalVendorSku: product.vendorProductCode || "",
+    barcode: product.barcode || "",
+    emptyBarcode: !product.barcode,
+    emptyBarcodeReason: !product.barcode ? "상품확인불가_바코드없음사유" : "",
+    modelNo: product.modelNumber || "",
+    certifications: certifications,
+    searchTags: searchTags,
+    images: images,
+    attributes: attributes,
+    contents: contents.length > 0 ? contents : [{
+      contentsType: "TEXT",
+      contentDetails: [{
+        content: product.productName || "Product",
+        detailType: "TEXT"
+      }]
+    }],
+    offerCondition: "NEW",
+    offerDescription: ""
+  };
+
+  // Build the full product payload matching Coupang API exactly
+  const payload = {
+    displayCategoryCode: categoryCode,
+    sellerProductName: (product.productName || "").substring(0, 100),
     vendorId: vendorId,
-    saleStartedAt: product.saleStartDate || new Date().toISOString().split('T')[0],
-    saleEndedAt: product.saleEndDate || "2099-12-31",
-    brand: product.brand,
-    generalProductName: product.productName,
+    saleStartedAt: formatDate(product.saleStartDate, false),
+    saleEndedAt: formatDate(product.saleEndDate, true),
+    displayProductName: product.brand ? `${product.brand} ${product.productName}`.substring(0, 100) : undefined,
+    brand: product.brand || "",
+    generalProductName: (product.productName || "").substring(0, 100),
     productGroup: "",
     deliveryMethod: "SEQUENCIAL",
-    deliveryCompanyCode: "CJGLS",
+    deliveryCompanyCode: wingSettings.deliveryCompanyCode || "CJGLS",
     deliveryChargeType: "FREE",
     deliveryCharge: 0,
     freeShipOverAmount: 0,
-    deliveryChargeOnReturn: 5000,
-    remoteAreaDeliverable: "Y",
+    deliveryChargeOnReturn: Math.round(wingSettings.deliveryChargeOnReturn || 2500),
+    remoteAreaDeliverable: "N",
     unionDeliveryType: "NOT_UNION_DELIVERY",
-    returnCenterCode: "",
-    returnChargeName: "",
-    companyContactNumber: "",
-    returnZipCode: "",
-    returnAddress: "",
-    returnAddressDetail: "",
-    returnCharge: 5000,
-    returnChargeVendor: "N",
-    afterServiceInformation: "",
-    afterServiceContactNumber: "",
-    outboundShippingPlaceCode: "",
-    vendorUserId: "",
-    requested: false,
-    items: items,
+    returnCenterCode: wingSettings.returnCenterCode || "",
+    returnChargeName: wingSettings.returnChargeName || "",
+    companyContactNumber: wingSettings.companyContactNumber || "",
+    returnZipCode: wingSettings.returnZipCode || "",
+    returnAddress: wingSettings.returnAddress || "",
+    returnAddressDetail: wingSettings.returnAddressDetail || "",
+    returnCharge: Math.round(wingSettings.returnCharge || 2500),
+    outboundShippingPlaceCode: parseInt(wingSettings.outboundShippingPlaceCode) || 0,
+    vendorUserId: wingSettings.vendorUserId || "",
+    requested: false, // Always false initially for safety - product will be in draft state
+    items: [item],
     requiredDocuments: [],
     extraInfoMessage: "",
-    manufacture: product.manufacturer || product.brand,
-    notices: []
+    manufacture: product.manufacturer || product.brand || "",
+    bundleInfo: {
+      bundleType: "SINGLE"
+    }
   };
+
+  return payload;
+}
+
+// Validate product data before transformation
+function validateProductForUpload(product: any, wingSettings: any): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Required product fields
+  if (!product.category) errors.push("Category is required");
+  if (!product.productName) errors.push("Product name is required");
+  if (!product.salePrice || product.salePrice <= 0) errors.push("Sale price must be greater than 0");
+  if (!product.discountBasePrice || product.discountBasePrice <= 0) errors.push("Discount base price must be greater than 0");
+  if (!product.stockQuantity || product.stockQuantity <= 0) errors.push("Stock quantity must be greater than 0");
+  if (!product.leadTime || product.leadTime < 1) errors.push("Lead time must be at least 1 day");
+  if (!product.mainImage) errors.push("Main image URL is required");
+  if (!product.detailedDescription) errors.push("Detailed description is required");
+  if (!product.brand) errors.push("Brand is required");
+  if (!product.manufacturer) errors.push("Manufacturer is required");
+
+  // Validate image URL format
+  if (product.mainImage && !product.mainImage.startsWith('http')) {
+    errors.push("Main image must be a valid URL starting with http:// or https://");
+  }
+
+  // Required Wing settings
+  if (!wingSettings.returnCenterCode) errors.push("Return Center Code is required (from Wing settings)");
+  if (!wingSettings.returnChargeName) errors.push("Return Location Name is required (from Wing settings)");
+  if (!wingSettings.companyContactNumber) errors.push("Contact Number is required (from Wing settings)");
+  if (!wingSettings.returnZipCode) errors.push("Return Postal Code is required (from Wing settings)");
+  if (!wingSettings.returnAddress) errors.push("Return Address is required (from Wing settings)");
+  if (!wingSettings.returnAddressDetail) errors.push("Return Address Detail is required (from Wing settings)");
+  if (!wingSettings.outboundShippingPlaceCode) errors.push("Shipping Place Code is required (from Wing settings)");
+  if (!wingSettings.deliveryCompanyCode) errors.push("Courier Code is required (from Wing settings)");
+  if (!wingSettings.vendorUserId) errors.push("Wing Login ID is required (from Wing settings)");
+
+  return { valid: errors.length === 0, errors };
 }
 
 // Validate credentials by making a lightweight API call
@@ -166,6 +296,7 @@ async function validateCredentials(accessKey: string, secretKey: string, vendorI
   try {
     const { authorization } = await generateHmacSignature(method, path, query, secretKey, accessKey);
     
+    console.log('[Validate] Making API request...');
     const response = await fetch(`https://api-gateway.coupang.com${path}?${query}`, {
       method,
       headers: {
@@ -175,17 +306,17 @@ async function validateCredentials(accessKey: string, secretKey: string, vendorI
     });
 
     console.log('[Validate] Response status:', response.status);
+    const responseText = await response.text();
+    console.log('[Validate] Response body:', responseText.slice(0, 500));
     
     if (response.status === 200) {
-      return { valid: true, message: 'API credentials are valid' };
+      return { valid: true, message: 'API credentials verified successfully!' };
     } else if (response.status === 401) {
       return { valid: false, message: 'Invalid API credentials. Please check your Access Key and Secret Key.' };
     } else if (response.status === 403) {
       return { valid: false, message: 'Access forbidden. Please check your Vendor ID and API permissions.' };
     } else {
-      const body = await response.text();
-      console.log('[Validate] Response body:', body);
-      return { valid: false, message: `API error (${response.status}): ${body.slice(0, 200)}` };
+      return { valid: false, message: `API error (${response.status}): ${responseText.slice(0, 200)}` };
     }
   } catch (error: unknown) {
     console.error('[Validate] Error:', error);
@@ -199,18 +330,29 @@ async function uploadProduct(
   product: any,
   accessKey: string,
   secretKey: string,
-  vendorId: string
-): Promise<{ success: boolean; productId?: string; error?: string; details?: any }> {
+  vendorId: string,
+  wingSettings: any
+): Promise<{ success: boolean; productId?: string; error?: string; details?: any; payload?: any }> {
   const method = "POST";
   const path = `/v2/providers/seller_api/apis/api/v1/marketplace/seller-products`;
   const query = "";
   
   try {
+    // Validate product data first
+    const validation = validateProductForUpload(product, wingSettings);
+    if (!validation.valid) {
+      return {
+        success: false,
+        error: `Validation failed: ${validation.errors.join(', ')}`,
+        details: { validationErrors: validation.errors }
+      };
+    }
+
     // Transform product to Coupang format
-    const payload = transformProductToCoupangFormat(product, vendorId);
+    const payload = transformProductToCoupangFormat(product, vendorId, wingSettings);
     
     console.log('[Upload] Uploading product:', product.productName);
-    console.log('[Upload] Payload preview:', JSON.stringify(payload).slice(0, 500));
+    console.log('[Upload] Payload:', JSON.stringify(payload, null, 2).slice(0, 2000));
 
     const { authorization } = await generateHmacSignature(method, path, query, secretKey, accessKey);
 
@@ -225,7 +367,7 @@ async function uploadProduct(
 
     const responseText = await response.text();
     console.log('[Upload] Response status:', response.status);
-    console.log('[Upload] Response body:', responseText.slice(0, 500));
+    console.log('[Upload] Response body:', responseText.slice(0, 1000));
 
     let responseData;
     try {
@@ -238,13 +380,25 @@ async function uploadProduct(
       return {
         success: true,
         productId: responseData.data?.sellerProductId || responseData.sellerProductId,
-        details: responseData
+        details: responseData,
+        payload: payload
       };
     } else {
+      // Extract detailed error message from Coupang response
+      let errorMsg = `HTTP ${response.status}`;
+      if (responseData.message) {
+        errorMsg = responseData.message;
+      } else if (responseData.data?.message) {
+        errorMsg = responseData.data.message;
+      } else if (responseData.error) {
+        errorMsg = responseData.error;
+      }
+      
       return {
         success: false,
-        error: responseData.message || responseData.error || `HTTP ${response.status}`,
-        details: responseData
+        error: errorMsg,
+        details: responseData,
+        payload: payload
       };
     }
   } catch (error: unknown) {
@@ -257,25 +411,25 @@ async function uploadProduct(
   }
 }
 
-// Batch upload with controlled concurrency and progress tracking
+// Batch upload with rate limiting (max 10 per second per Coupang docs)
 async function batchUpload(
   products: any[],
   accessKey: string,
   secretKey: string,
   vendorId: string,
-  batchSize: number = 1
+  wingSettings: any
 ): Promise<{ results: any[]; successCount: number; failedCount: number }> {
   const results: any[] = [];
   let successCount = 0;
   let failedCount = 0;
 
-  // Process one at a time to be safe with API rate limits
+  // Process one at a time with 150ms delay (ensuring under 10 per second)
   for (let i = 0; i < products.length; i++) {
     const product = products[i];
     
     console.log(`[Batch] Processing product ${i + 1}/${products.length}: ${product.productName}`);
     
-    const result = await uploadProduct(product, accessKey, secretKey, vendorId);
+    const result = await uploadProduct(product, accessKey, secretKey, vendorId, wingSettings);
     
     results.push({
       productIndex: i,
@@ -289,9 +443,9 @@ async function batchUpload(
       failedCount++;
     }
 
-    // Add delay between requests to respect rate limits
+    // Rate limiting: 150ms delay between requests (allows ~6-7 per second, well under limit)
     if (i < products.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
   }
 
@@ -305,7 +459,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, credentials, products, dryRun } = await req.json();
+    const { action, credentials, products, wingSettings, dryRun } = await req.json();
 
     console.log('[API] Action:', action, '| Products count:', products?.length || 0, '| Dry run:', dryRun);
 
@@ -351,20 +505,53 @@ serve(async (req) => {
           );
         }
 
-        // If dry run, just validate and return transformed payloads
+        // Validate wing settings
+        if (!wingSettings) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Wing settings are required. Please configure return location and shipping settings.' 
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // If dry run, validate and return transformed payloads without API calls
         if (dryRun) {
           console.log('[API] Dry run mode - validating without API calls');
-          const transformedProducts = products.map((p, idx) => ({
-            index: idx,
-            original: p,
-            transformed: transformProductToCoupangFormat(p, vendorId)
-          }));
+          
+          const transformedProducts = products.map((p: any, idx: number) => {
+            const validation = validateProductForUpload(p, wingSettings);
+            let transformed = null;
+            
+            if (validation.valid) {
+              transformed = transformProductToCoupangFormat(p, vendorId, wingSettings);
+            }
+            
+            return {
+              index: idx,
+              productName: p.productName,
+              valid: validation.valid,
+              errors: validation.errors,
+              transformed: transformed
+            };
+          });
+          
+          const validCount = transformedProducts.filter((p: any) => p.valid).length;
+          const invalidCount = transformedProducts.filter((p: any) => !p.valid).length;
           
           return new Response(
             JSON.stringify({
-              success: true,
+              success: invalidCount === 0,
               dryRun: true,
-              message: `Validated ${products.length} products. Ready for upload.`,
+              message: invalidCount === 0 
+                ? `All ${validCount} products are valid and ready for upload.`
+                : `${invalidCount} product(s) have validation errors. Please fix them before uploading.`,
+              validCount,
+              invalidCount,
               products: transformedProducts
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -387,7 +574,7 @@ serve(async (req) => {
         }
 
         // Perform batch upload
-        const uploadResult = await batchUpload(products, accessKey, secretKey, vendorId);
+        const uploadResult = await batchUpload(products, accessKey, secretKey, vendorId, wingSettings);
         
         return new Response(
           JSON.stringify({
@@ -396,6 +583,44 @@ serve(async (req) => {
             successCount: uploadResult.successCount,
             failedCount: uploadResult.failedCount,
             results: uploadResult.results
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'validate-products': {
+        // Validate products without uploading
+        if (!products || !Array.isArray(products) || products.length === 0) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'No products provided for validation.' 
+            }),
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        const validationResults = products.map((p: any, idx: number) => {
+          const validation = validateProductForUpload(p, wingSettings || {});
+          return {
+            index: idx,
+            productName: p.productName,
+            valid: validation.valid,
+            errors: validation.errors
+          };
+        });
+
+        const validCount = validationResults.filter((r: any) => r.valid).length;
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            validCount,
+            invalidCount: validationResults.length - validCount,
+            results: validationResults
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -411,7 +636,7 @@ serve(async (req) => {
           JSON.stringify({
             success: true,
             datetime,
-            authorization: authorization.slice(0, 50) + '...',
+            authorization: authorization.slice(0, 80) + '...',
             message: 'HMAC signature generated successfully. Use validate action to test with actual API.'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -422,7 +647,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: `Unknown action: ${action}. Supported actions: validate, upload, test-signature` 
+            error: `Unknown action: ${action}. Supported actions: validate, upload, validate-products, test-signature` 
           }),
           { 
             status: 400, 
