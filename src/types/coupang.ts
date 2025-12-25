@@ -1,18 +1,139 @@
-// Coupang Product Types based on the official XLSM template
+// ============================================================
+// Coupang Open API - Official Type Definitions
+// Based on: https://developers.coupangcorp.com/hc/en-us/articles/360033877853-Product-Creation
+// ============================================================
 
+// ==================== API REQUEST TYPES ====================
+
+// Main product creation request structure
+export interface CoupangProductRequest {
+  displayCategoryCode: number;           // Required: Display category code
+  sellerProductName: string;             // Required: Product name (max 100 chars)
+  vendorId: string;                      // Required: Vendor ID from Wing
+  saleStartedAt: string;                 // Required: yyyy-MM-dd'T'HH:mm:ss
+  saleEndedAt: string;                   // Required: yyyy-MM-dd'T'HH:mm:ss
+  displayProductName?: string;           // Optional: Product name for display (max 100 chars)
+  brand?: string;                        // Optional: Brand name
+  generalProductName?: string;           // Optional: Product name without options
+  productGroup?: string;                 // Optional: Product category
+  deliveryMethod: DeliveryMethod;        // Required
+  deliveryCompanyCode: string;           // Required: Courier code
+  deliveryChargeType: DeliveryChargeType;// Required
+  deliveryCharge: number;                // Required: Standard delivery fee
+  freeShipOverAmount: number;            // Required: Conditional amount for free delivery
+  deliveryChargeOnReturn: number;        // Required: Initial shipping fee on return
+  remoteAreaDeliverable: 'Y' | 'N';      // Required
+  unionDeliveryType: UnionDeliveryType;  // Required
+  returnCenterCode: string;              // Required: Return location center code
+  returnChargeName: string;              // Required: Return location name
+  companyContactNumber: string;          // Required: Return location contact number
+  returnZipCode: string;                 // Required: Return location postal code
+  returnAddress: string;                 // Required: Return location address
+  returnAddressDetail: string;           // Required: Return location detail address
+  returnCharge: number;                  // Required: Return shipping fee
+  outboundShippingPlaceCode: number;     // Required for bundled delivery
+  vendorUserId: string;                  // Required: Wing login ID
+  requested: boolean;                    // Required: Auto approval request
+  items: CoupangItem[];                  // Required: Product items/variants
+  requiredDocuments?: RequiredDocument[];
+  extraInfoMessage?: string;
+  manufacture?: string;                  // Manufacturer
+  bundleInfo?: { bundleType: 'SINGLE' | 'AB' };
+}
+
+// Item (variant/option) structure
+export interface CoupangItem {
+  itemName: string;                      // Required: Option name (max 150 chars)
+  originalPrice: number;                 // Required: Original base price
+  salePrice: number;                     // Required: Sale price
+  maximumBuyCount: number;               // Required: Inventory quantity (max 99999)
+  maximumBuyForPerson: number;           // Required: Max order per person (0 = no limit)
+  maximumBuyForPersonPeriod: number;     // Required: Period for max order (1 = no period)
+  outboundShippingTimeDay: number;       // Required: Outbound shipping days
+  unitCount: number;                     // Required: Unit count
+  adultOnly: 'ADULT_ONLY' | 'EVERYONE';  // Required
+  taxType: 'TAX' | 'FREE';               // Required
+  parallelImported: 'PARALLEL_IMPORTED' | 'NOT_PARALLEL_IMPORTED';  // Required
+  overseasPurchased: 'OVERSEAS_PURCHASED' | 'NOT_OVERSEAS_PURCHASED'; // Required
+  pccNeeded: boolean;                    // Required: Personal customs clearance code needed
+  externalVendorSku?: string;            // Optional: Vendor product code
+  barcode?: string;
+  emptyBarcode?: boolean;
+  emptyBarcodeReason?: string;
+  modelNo?: string;
+  extraProperties?: Record<string, any>;
+  certifications?: Certification[];
+  searchTags?: string[];
+  images: CoupangImage[];                // Required: At least REPRESENTATION image
+  notices?: Notice[];
+  attributes: CoupangAttribute[];        // Required: At least one attribute
+  contents: CoupangContent[];            // Required
+  offerCondition?: OfferCondition;
+  offerDescription?: string;
+}
+
+export interface CoupangImage {
+  imageOrder: number;                    // Required: 0,1,2...
+  imageType: 'REPRESENTATION' | 'DETAIL' | 'USED_PRODUCT'; // Required
+  cdnPath?: string;                      // At least one of cdnPath or vendorPath required
+  vendorPath?: string;                   // At least one of cdnPath or vendorPath required
+}
+
+export interface CoupangAttribute {
+  attributeTypeName: string;             // Required: Option type name (max 25 chars)
+  attributeValueName: string;            // Required: Option value (max 30 chars)
+}
+
+export interface CoupangContent {
+  contentsType: 'IMAGE' | 'IMAGE_NO_SPACE' | 'TEXT' | 'IMAGE_TEXT' | 'TEXT_IMAGE' | 'IMAGE_IMAGE' | 'TEXT_TEXT' | 'TITLE' | 'HTML';
+  contentDetails: ContentDetail[];
+}
+
+export interface ContentDetail {
+  content: string;
+  detailType: 'IMAGE' | 'TEXT';
+}
+
+export interface Notice {
+  noticeCategoryName: string;
+  noticeCategoryDetailName: string;
+  content: string;
+}
+
+export interface Certification {
+  certificationType: string;
+  certificationCode: string;
+  certificationAttachments?: { vendorPath?: string; cdnPath?: string }[];
+}
+
+export interface RequiredDocument {
+  templateName?: string;
+  documentPath?: string;
+  vendorDocumentPath?: string;
+}
+
+// Enums
+export type DeliveryMethod = 'SEQUENCIAL' | 'COLD_FRESH' | 'MAKE_ORDER' | 'AGENT_BUY' | 'VENDOR_DIRECT';
+export type DeliveryChargeType = 'FREE' | 'NOT_FREE' | 'CHARGE_RECEIVED' | 'CONDITIONAL_FREE';
+export type UnionDeliveryType = 'UNION_DELIVERY' | 'NOT_UNION_DELIVERY';
+export type OfferCondition = 'NEW' | 'REFURBISHED' | 'USED_BEST' | 'USED_GOOD' | 'USED_NORMAL';
+
+// ==================== INTERNAL APP TYPES ====================
+
+// Our internal product representation (parsed from XLSM)
 export interface CoupangProduct {
   // Basic Info
-  category: string;              // Category (Required)
-  productName: string;           // Product Name (Required)
-  saleStartDate: string;         // Sale Start Date
-  saleEndDate: string;           // Sale End Date
-  productStatus: string;         // Product Status
-  statusDescription: string;     // Status Description
-  brand: string;                 // Brand (Required)
-  manufacturer: string;          // Manufacturer (Required)
-  searchKeywords: string;        // Search Keywords
+  category: string;              // Category code or path
+  productName: string;           // sellerProductName
+  saleStartDate: string;
+  saleEndDate: string;
+  productStatus: string;
+  statusDescription: string;
+  brand: string;
+  manufacturer: string;
+  searchKeywords: string;
 
-  // Purchase Options
+  // Purchase Options (attributes)
   optionType1: string;
   optionValue1: string;
   optionType2: string;
@@ -34,18 +155,18 @@ export interface CoupangProduct {
 
   // Configuration
   salePrice: number;             // Sale Price (Required)
-  discountBasePrice: number;     // Discount Base Price (Required)
-  stockQuantity: number;         // Stock Quantity (Required)
-  leadTime: number;              // Lead Time (Required)
-  maxPurchasePerPerson: number;  // Max Purchase Per Person
-  maxPurchasePeriod: number;     // Max Purchase Period (Days)
-  adultOnly: boolean;            // Adult Only (19+)
-  taxable: boolean;              // Taxable
-  parallelImport: boolean;       // Parallel Import
-  overseasPurchase: boolean;     // Overseas Purchase Agency
-  vendorProductCode: string;     // Vendor Product Code
-  modelNumber: string;           // Model Number
-  barcode: string;               // Barcode
+  discountBasePrice: number;     // Original Price (Required)
+  stockQuantity: number;         // maximumBuyCount (Required)
+  leadTime: number;              // outboundShippingTimeDay (Required)
+  maxPurchasePerPerson: number;  // maximumBuyForPerson
+  maxPurchasePeriod: number;     // maximumBuyForPersonPeriod
+  adultOnly: boolean;
+  taxable: boolean;
+  parallelImport: boolean;
+  overseasPurchase: boolean;
+  vendorProductCode: string;     // externalVendorSku
+  modelNumber: string;
+  barcode: string;
 
   // Certification Info
   certInfoType1: string;
@@ -60,12 +181,12 @@ export interface CoupangProduct {
   noticeValues: string[];
 
   // Images
-  mainImage: string;             // Main Image (Required)
-  additionalImages: string[];    // Additional Images
-  conditionImages: string[];     // Condition Images (Used)
+  mainImage: string;             // Required: REPRESENTATION image
+  additionalImages: string[];    // Optional: DETAIL images
+  conditionImages: string[];     // Optional: USED_PRODUCT images
 
   // Product Description
-  detailedDescription: string;   // Detailed Description (Required)
+  detailedDescription: string;   // Required
 
   // Documents
   documents: string[];
@@ -86,21 +207,22 @@ export interface ValidationError {
   fieldLabel: string;
   message: string;
   severity: 'error' | 'warning';
-  cellReference?: string;  // Excel cell reference like "A4", "Z10"
-  columnIndex?: number;    // 0-based column index
+  cellReference?: string;
+  columnIndex?: number;
 }
 
 // Excel column letter conversion helper
 export function getExcelColumnLetter(index: number): string {
   let result = '';
-  while (index >= 0) {
-    result = String.fromCharCode((index % 26) + 65) + result;
-    index = Math.floor(index / 26) - 1;
+  let n = index;
+  while (n >= 0) {
+    result = String.fromCharCode((n % 26) + 65) + result;
+    n = Math.floor(n / 26) - 1;
   }
   return result;
 }
 
-// Editable fields that users can modify in the platform
+// Editable fields in the platform
 export const EDITABLE_FIELDS: (keyof CoupangProduct)[] = [
   'productName',
   'brand',
@@ -116,6 +238,10 @@ export const EDITABLE_FIELDS: (keyof CoupangProduct)[] = [
   'barcode',
   'mainImage',
   'detailedDescription',
+  'optionType1',
+  'optionValue1',
+  'optionType2',
+  'optionValue2',
 ];
 
 export interface UploadSession {
@@ -130,13 +256,77 @@ export interface UploadSession {
   products: ParsedProduct[];
 }
 
+// Wing Account Settings (required for API calls)
+export interface WingSettings {
+  // Return Location Info
+  returnCenterCode: string;
+  returnChargeName: string;
+  companyContactNumber: string;
+  returnZipCode: string;
+  returnAddress: string;
+  returnAddressDetail: string;
+  returnCharge: number;
+  deliveryChargeOnReturn: number;
+  
+  // Shipping Info
+  outboundShippingPlaceCode: string;
+  deliveryCompanyCode: string;
+  
+  // Vendor Info
+  vendorUserId: string;
+}
+
 export interface CoupangApiCredentials {
   accessKey: string;
   secretKey: string;
   vendorId: string;
 }
 
-// Column mapping from Korean headers to our internal fields
+// Required fields from XLSM (for validation)
+export const REQUIRED_FIELDS: (keyof CoupangProduct)[] = [
+  'category',
+  'productName',
+  'brand',
+  'manufacturer',
+  'salePrice',
+  'discountBasePrice',
+  'stockQuantity',
+  'leadTime',
+  'mainImage',
+  'detailedDescription',
+];
+
+// Required Wing settings (must be configured before upload)
+export const REQUIRED_WING_SETTINGS: (keyof WingSettings)[] = [
+  'returnCenterCode',
+  'returnChargeName',
+  'companyContactNumber',
+  'returnZipCode',
+  'returnAddress',
+  'returnAddressDetail',
+  'returnCharge',
+  'deliveryChargeOnReturn',
+  'outboundShippingPlaceCode',
+  'deliveryCompanyCode',
+  'vendorUserId',
+];
+
+// Courier codes supported by Coupang
+export const COURIER_CODES: Record<string, string> = {
+  'CJGLS': 'CJ Logistics (CJ대한통운)',
+  'KDEXP': 'Hanjin (한진택배)',
+  'EPOST': 'Korea Post (우체국택배)',
+  'LOGEN': 'Logen (로젠택배)',
+  'KGB': 'KGB (KGB택배)',
+  'HYUNDAI': 'Hyundai (현대택배)',
+  'ILYANG': 'Ilyang (일양택배)',
+  'CHUNIL': 'Chunil (천일택배)',
+  'DONGBU': 'Dongbu (동부익스프레스)',
+  'CVS': 'CVS Convenience (편의점택배)',
+  'DIRECT': 'Direct Delivery (직접배송)',
+};
+
+// Column mapping from Korean headers to internal fields
 export const COLUMN_MAPPING: Record<string, keyof CoupangProduct> = {
   '카테고리': 'category',
   '등록상품명': 'productName',
@@ -164,20 +354,7 @@ export const COLUMN_MAPPING: Record<string, keyof CoupangProduct> = {
   '상세 설명': 'detailedDescription',
 };
 
-export const REQUIRED_FIELDS: (keyof CoupangProduct)[] = [
-  'category',
-  'productName',
-  'brand',
-  'manufacturer',
-  'salePrice',
-  'discountBasePrice',
-  'stockQuantity',
-  'leadTime',
-  'mainImage',
-  'detailedDescription',
-];
-
-// Korean field labels (for reference with XLSM files)
+// Korean field labels
 export const FIELD_LABELS: Record<keyof CoupangProduct, string> = {
   category: '카테고리',
   productName: '등록상품명',
@@ -232,7 +409,7 @@ export const FIELD_LABELS: Record<keyof CoupangProduct, string> = {
   documents: '구비서류',
 };
 
-// English field labels (for UI display)
+// English field labels
 export const FIELD_LABELS_EN: Record<keyof CoupangProduct, string> = {
   category: 'Category',
   productName: 'Product Name',
@@ -262,14 +439,14 @@ export const FIELD_LABELS_EN: Record<keyof CoupangProduct, string> = {
   salePrice: 'Sale Price',
   discountBasePrice: 'Discount Base Price',
   stockQuantity: 'Stock Quantity',
-  leadTime: 'Lead Time',
-  maxPurchasePerPerson: 'Max Purchase Per Person',
+  leadTime: 'Lead Time (Days)',
+  maxPurchasePerPerson: 'Max Per Person',
   maxPurchasePeriod: 'Max Purchase Period',
   adultOnly: 'Adult Only',
   taxable: 'Taxable',
   parallelImport: 'Parallel Import',
   overseasPurchase: 'Overseas Purchase',
-  vendorProductCode: 'Vendor Product Code',
+  vendorProductCode: 'Vendor SKU',
   modelNumber: 'Model Number',
   barcode: 'Barcode',
   certInfoType1: 'Cert Type 1',
@@ -285,4 +462,19 @@ export const FIELD_LABELS_EN: Record<keyof CoupangProduct, string> = {
   conditionImages: 'Condition Images',
   detailedDescription: 'Detailed Description',
   documents: 'Documents',
+};
+
+// Wing settings labels
+export const WING_SETTINGS_LABELS: Record<keyof WingSettings, string> = {
+  returnCenterCode: 'Return Center Code',
+  returnChargeName: 'Return Location Name',
+  companyContactNumber: 'Contact Number',
+  returnZipCode: 'Return Postal Code',
+  returnAddress: 'Return Address',
+  returnAddressDetail: 'Return Address Detail',
+  returnCharge: 'Return Shipping Fee (₩)',
+  deliveryChargeOnReturn: 'Initial Return Fee (₩)',
+  outboundShippingPlaceCode: 'Shipping Place Code',
+  deliveryCompanyCode: 'Courier Code',
+  vendorUserId: 'Wing Login ID',
 };
