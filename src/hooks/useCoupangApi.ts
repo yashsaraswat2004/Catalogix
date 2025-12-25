@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { CoupangApiCredentials, ParsedProduct } from '@/types/coupang';
+import { CoupangApiCredentials, ParsedProduct, WingSettings } from '@/types/coupang';
 
 export interface UploadResult {
   productIndex: number;
@@ -16,6 +16,8 @@ export interface BatchUploadResponse {
   message: string;
   successCount?: number;
   failedCount?: number;
+  validCount?: number;
+  invalidCount?: number;
   results?: UploadResult[];
   dryRun?: boolean;
   products?: any[];
@@ -23,14 +25,15 @@ export interface BatchUploadResponse {
 }
 
 export function useCoupangApi() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Validate API credentials
   const validateCredentials = useCallback(async (
     credentials: CoupangApiCredentials
   ): Promise<{ valid: boolean; message: string }> => {
-    setIsLoading(true);
+    setIsValidating(true);
     setError(null);
 
     try {
@@ -57,16 +60,17 @@ export function useCoupangApi() {
       setError(message);
       return { valid: false, message };
     } finally {
-      setIsLoading(false);
+      setIsValidating(false);
     }
   }, []);
 
   // Dry run to validate products without uploading
   const dryRun = useCallback(async (
     credentials: CoupangApiCredentials,
+    wingSettings: WingSettings,
     products: ParsedProduct[]
   ): Promise<BatchUploadResponse> => {
-    setIsLoading(true);
+    setIsValidating(true);
     setError(null);
 
     try {
@@ -80,6 +84,7 @@ export function useCoupangApi() {
             secretKey: credentials.secretKey,
             vendorId: credentials.vendorId,
           },
+          wingSettings,
           products: productData,
           dryRun: true,
         },
@@ -97,17 +102,18 @@ export function useCoupangApi() {
       setError(message);
       return { success: false, message, error: message };
     } finally {
-      setIsLoading(false);
+      setIsValidating(false);
     }
   }, []);
 
   // Upload products to Coupang
   const uploadProducts = useCallback(async (
     credentials: CoupangApiCredentials,
+    wingSettings: WingSettings,
     products: ParsedProduct[],
     onProgress?: (current: number, total: number) => void
   ): Promise<BatchUploadResponse> => {
-    setIsLoading(true);
+    setIsUploading(true);
     setError(null);
 
     try {
@@ -124,6 +130,7 @@ export function useCoupangApi() {
             secretKey: credentials.secretKey,
             vendorId: credentials.vendorId,
           },
+          wingSettings,
           products: productData,
           dryRun: false,
         },
@@ -144,7 +151,7 @@ export function useCoupangApi() {
       setError(message);
       return { success: false, message, error: message };
     } finally {
-      setIsLoading(false);
+      setIsUploading(false);
     }
   }, []);
 
@@ -152,7 +159,7 @@ export function useCoupangApi() {
   const testSignature = useCallback(async (
     credentials: CoupangApiCredentials
   ): Promise<{ success: boolean; message: string }> => {
-    setIsLoading(true);
+    setIsValidating(true);
     setError(null);
 
     try {
@@ -179,12 +186,13 @@ export function useCoupangApi() {
       setError(message);
       return { success: false, message };
     } finally {
-      setIsLoading(false);
+      setIsValidating(false);
     }
   }, []);
 
   return {
-    isLoading,
+    isValidating,
+    isUploading,
     error,
     validateCredentials,
     dryRun,
