@@ -398,9 +398,11 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     item.notices = notices;
   }
 
-  // Detect if this is overseas shipping (non-KR country code in wingSettings)
+  // Detect if this is overseas shipping:
+  // - Product explicitly marked as overseas purchase, OR
+  // - Wing settings country code is not KR
   // For overseas products, deliveryMethod must be "AGENT" (구매대행)
-  const isOverseas = wingSettings.countryCode && wingSettings.countryCode !== 'KR';
+  const isOverseas = product.overseasPurchase || (wingSettings.countryCode && wingSettings.countryCode !== 'KR');
   const deliveryMethod = isOverseas ? "AGENT" : "SEQUENCIAL";
 
   // Clean and truncate brand name (max 100 chars)
