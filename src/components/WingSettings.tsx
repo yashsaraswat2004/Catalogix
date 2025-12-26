@@ -24,8 +24,6 @@ const FIELD_HELP: Record<keyof WingSettingsType, string> = {
   returnZipCode: 'Postal code of your return address.',
   returnAddress: 'Main return address (city, district, street).',
   returnAddressDetail: 'Detailed address (building, floor, unit).',
-  returnCharge: 'Return shipping fee charged to customer (one-way). Usually 2500-5000 KRW.',
-  deliveryChargeOnReturn: 'Initial shipping fee for free delivery returns. Must be between 100-150% of return charge.',
   outboundShippingPlaceCode: 'Click "Fetch from Wing" to auto-fill this, or find it in Wing → Settings → Shipping Location.',
   deliveryCompanyCode: 'Select your contracted courier company.',
   vendorUserId: 'Your Wing login ID (email or username used to log into Wing).',
@@ -284,55 +282,6 @@ export function WingSettingsForm({ settings, onSettingsChange, credentials }: Wi
                   value={localSettings.returnAddressDetail || ''}
                   onChange={(e) => handleChange('returnAddressDetail', e.target.value)}
                   placeholder="e.g., 123번지 4층"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Shipping Fees Section */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-              Shipping Fees
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  {WING_SETTINGS_LABELS.returnCharge}
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-3 w-3 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      {FIELD_HELP.returnCharge}
-                    </TooltipContent>
-                  </Tooltip>
-                </Label>
-                <Input
-                  type="number"
-                  value={localSettings.returnCharge || ''}
-                  onChange={(e) => handleChange('returnCharge', parseInt(e.target.value) || 0)}
-                  placeholder="e.g., 2500"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  {WING_SETTINGS_LABELS.deliveryChargeOnReturn}
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-3 w-3 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs">
-                      {FIELD_HELP.deliveryChargeOnReturn}
-                    </TooltipContent>
-                  </Tooltip>
-                </Label>
-                <Input
-                  type="number"
-                  value={localSettings.deliveryChargeOnReturn || ''}
-                  onChange={(e) => handleChange('deliveryChargeOnReturn', parseInt(e.target.value) || 0)}
-                  placeholder="e.g., 2500"
                 />
               </div>
             </div>
