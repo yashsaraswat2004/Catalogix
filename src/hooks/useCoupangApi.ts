@@ -239,6 +239,58 @@ export function useCoupangApi() {
     }
   }, []);
 
+  // Translate products from English to Korean
+  const translateProducts = useCallback(async (
+    products: ParsedProduct[]
+  ): Promise<{ success: boolean; products: ParsedProduct[]; message: string }> => {
+    // Check if any products need translation
+    const needsTranslation = products.some(p => p.data.needsTranslation);
+    if (!needsTranslation) {
+      return { success: true, products, message: 'No translation needed' };
+    }
+
+    setIsValidating(true);
+    setError(null);
+    logMode();
+
+    try {
+      console.log('[CoupangAPI] Translating products to Korean...');
+      
+      const { data, error: fnError } = await invokeFunction('translate-product', {
+        products: products.map(p => ({
+          id: p.id,
+          rowIndex: p.rowIndex,
+          data: p.data,
+          validationErrors: p.validationErrors,
+          status: p.status,
+        })),
+      });
+
+      if (fnError) {
+        const message = fnError.message || 'Translation failed';
+        setError(message);
+        return { success: false, products, message };
+      }
+
+      if (data?.success && Array.isArray(data.products)) {
+        console.log('[CoupangAPI] Translation successful');
+        return { 
+          success: true, 
+          products: data.products as ParsedProduct[], 
+          message: data.message || 'Translation complete' 
+        };
+      }
+
+      return { success: false, products, message: data?.error || 'Translation failed' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Translation error';
+      setError(message);
+      return { success: false, products, message };
+    } finally {
+      setIsValidating(false);
+    }
+  }, []);
+
   return {
     isValidating,
     isUploading,
@@ -249,6 +301,7 @@ export function useCoupangApi() {
     uploadProducts,
     testSignature,
     fetchShippingCenters,
+    translateProducts,
     clearError: () => setError(null),
   };
 }

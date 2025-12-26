@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileSpreadsheet, X, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, X, AlertCircle, Languages } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { parseXlsxFile } from '@/lib/xlsxParser';
+import { parseCsvFile, isCsvFile } from '@/lib/csvParser';
 import { ParsedProduct } from '@/types/coupang';
 
 interface FileUploadProps {
@@ -15,6 +15,7 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [isCsv, setIsCsv] = useState(false);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -27,12 +28,18 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
       return;
     }
 
+    const isFileCsv = isCsvFile(file);
+    setIsCsv(isFileCsv);
     setSelectedFile(file);
     setError(null);
     setIsParsing(true);
 
     try {
-      const products = await parseXlsxFile(file);
+      // Use appropriate parser based on file type
+      const products = isFileCsv 
+        ? await parseCsvFile(file) 
+        : await parseXlsxFile(file);
+        
       if (products.length === 0) {
         setError('No product data found in the file.');
         setIsParsing(false);
@@ -61,6 +68,7 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
   const clearFile = () => {
     setSelectedFile(null);
     setError(null);
+    setIsCsv(false);
   };
 
   return (
@@ -101,6 +109,12 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
               <p className="text-sm text-muted-foreground mt-1">
                 {(selectedFile.size / 1024).toFixed(1)} KB
               </p>
+              {isCsv && (
+                <div className="flex items-center gap-1 justify-center mt-2 text-xs text-primary">
+                  <Languages className="w-3 h-3" />
+                  <span>English → Korean translation enabled</span>
+                </div>
+              )}
             </div>
             {isParsing && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

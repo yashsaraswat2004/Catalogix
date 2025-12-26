@@ -190,6 +190,9 @@ export interface CoupangProduct {
 
   // Documents
   documents: string[];
+
+  // Translation flag (for English CSV imports)
+  needsTranslation?: boolean;
 }
 
 export interface ParsedProduct {
@@ -405,6 +408,7 @@ export const FIELD_LABELS: Record<keyof CoupangProduct, string> = {
   conditionImages: '상태이미지',
   detailedDescription: '상세설명',
   documents: '구비서류',
+  needsTranslation: '번역필요',
 };
 
 // English field labels
@@ -460,6 +464,7 @@ export const FIELD_LABELS_EN: Record<keyof CoupangProduct, string> = {
   conditionImages: 'Condition Images',
   detailedDescription: 'Detailed Description',
   documents: 'Documents',
+  needsTranslation: 'Needs Translation',
 };
 
 // Wing settings labels
