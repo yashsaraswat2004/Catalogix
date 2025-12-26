@@ -32,8 +32,6 @@ const DEFAULT_WING_SETTINGS: WingSettings = {
   returnZipCode: '',
   returnAddress: '',
   returnAddressDetail: '',
-  returnCharge: 2500,
-  deliveryChargeOnReturn: 2500,
   outboundShippingPlaceCode: '',
   deliveryCompanyCode: '',
   vendorUserId: '',

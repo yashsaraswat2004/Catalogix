@@ -257,6 +257,7 @@ export interface UploadSession {
 }
 
 // Wing Account Settings (required for API calls)
+// Note: returnCharge and deliveryChargeOnReturn are product-level fields, not here
 export interface WingSettings {
   // Return Location Info
   returnCenterCode: string;
@@ -265,8 +266,6 @@ export interface WingSettings {
   returnZipCode: string;
   returnAddress: string;
   returnAddressDetail: string;
-  returnCharge: number;
-  deliveryChargeOnReturn: number;
   
   // Shipping Info
   outboundShippingPlaceCode: string;
@@ -304,8 +303,6 @@ export const REQUIRED_WING_SETTINGS: (keyof WingSettings)[] = [
   'returnZipCode',
   'returnAddress',
   'returnAddressDetail',
-  'returnCharge',
-  'deliveryChargeOnReturn',
   'outboundShippingPlaceCode',
   'deliveryCompanyCode',
   'vendorUserId',
@@ -472,8 +469,6 @@ export const WING_SETTINGS_LABELS: Record<keyof WingSettings, string> = {
   returnZipCode: 'Return Postal Code',
   returnAddress: 'Return Address',
   returnAddressDetail: 'Return Address Detail',
-  returnCharge: 'Return Shipping Fee (₩)',
-  deliveryChargeOnReturn: 'Initial Return Fee (₩)',
   outboundShippingPlaceCode: 'Shipping Place Code',
   deliveryCompanyCode: 'Courier Code',
   vendorUserId: 'Wing Login ID',
