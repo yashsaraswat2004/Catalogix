@@ -211,6 +211,18 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     offerDescription: ""
   };
 
+  // Detect if this is overseas shipping (non-KR country code in wingSettings)
+  // For overseas products, deliveryMethod must be "AGENT" (구매대행)
+  const isOverseas = wingSettings.countryCode && wingSettings.countryCode !== 'KR';
+  const deliveryMethod = isOverseas ? "AGENT" : "SEQUENCIAL";
+
+  // Clean and truncate brand name (max 100 chars)
+  let cleanBrand = (product.brand || "").trim();
+  // Remove instruction text patterns
+  if (cleanBrand.includes("입력하세요") || cleanBrand.includes("예)") || cleanBrand.length > 100) {
+    cleanBrand = cleanBrand.substring(0, 100);
+  }
+
   // Build the full product payload matching Coupang API exactly
   const payload = {
     displayCategoryCode: categoryCode,
@@ -218,12 +230,12 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     vendorId: vendorId,
     saleStartedAt: formatDate(product.saleStartDate, false),
     saleEndedAt: formatDate(product.saleEndDate, true),
-    displayProductName: product.brand ? `${product.brand} ${product.productName}`.substring(0, 100) : undefined,
-    brand: product.brand || "",
+    displayProductName: cleanBrand ? `${cleanBrand} ${product.productName}`.substring(0, 100) : (product.productName || "").substring(0, 100),
+    brand: cleanBrand.substring(0, 100),
     generalProductName: (product.productName || "").substring(0, 100),
     productGroup: "",
-    deliveryMethod: "SEQUENCIAL",
-    deliveryCompanyCode: wingSettings.deliveryCompanyCode || "CJGLS",
+    deliveryMethod: deliveryMethod,
+    deliveryCompanyCode: isOverseas ? "DIRECT" : (wingSettings.deliveryCompanyCode || "CJGLS"),
     deliveryChargeType: "FREE",
     deliveryCharge: 0,
     freeShipOverAmount: 0,
@@ -752,6 +764,7 @@ serve(async (req) => {
                 addressDetail: place.placeAddresses?.[0]?.returnAddressDetail || '',
                 zipCode: place.placeAddresses?.[0]?.returnZipCode || '',
                 contactNumber: place.placeAddresses?.[0]?.companyContactNumber || '',
+                countryCode: place.placeAddresses?.[0]?.countryCode || 'KR',
                 usable: place.usable
               }));
             }

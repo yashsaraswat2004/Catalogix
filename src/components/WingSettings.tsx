@@ -26,6 +26,7 @@ const FIELD_HELP: Record<keyof WingSettingsType, string> = {
   returnAddressDetail: 'Detailed address (building, floor, unit).',
   outboundShippingPlaceCode: 'Click "Fetch from Wing" to auto-fill this, or find it in Wing → Settings → Shipping Location.',
   deliveryCompanyCode: 'Select your contracted courier company.',
+  countryCode: 'Country code of shipping location (KR = domestic, others = overseas/agent delivery).',
   vendorUserId: 'Your Wing login ID (email or username used to log into Wing).',
 };
 
@@ -80,7 +81,8 @@ export function WingSettingsForm({ settings, onSettingsChange, credentials }: Wi
         if (result.shippingPlaces.length > 0) {
           const place = result.shippingPlaces[0];
           newSettings.outboundShippingPlaceCode = place.code;
-          toast.success(`Found Shipping Place: ${place.name} (Code: ${place.code})`);
+          newSettings.countryCode = place.countryCode || 'KR';
+          toast.success(`Found Shipping Place: ${place.name} (Code: ${place.code}, Country: ${place.countryCode || 'KR'})`);
         } else {
           toast.warning('No shipping places found in your Wing account');
         }
