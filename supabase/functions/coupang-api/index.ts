@@ -359,7 +359,7 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
   }
 
   // Build the single item
-  const item = {
+  const item: any = {
     itemName: (product.productName || "Product").substring(0, 150),
     originalPrice: Math.round(product.discountBasePrice || product.salePrice || 0),
     salePrice: Math.round(product.salePrice || 0),
@@ -392,6 +392,11 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     offerCondition: "NEW",
     offerDescription: ""
   };
+
+  // Add notices if provided (auto-generated from category metadata)
+  if (Array.isArray(notices) && notices.length > 0) {
+    item.notices = notices;
+  }
 
   // Detect if this is overseas shipping (non-KR country code in wingSettings)
   // For overseas products, deliveryMethod must be "AGENT" (구매대행)
@@ -538,7 +543,8 @@ async function uploadProduct(
   accessKey: string,
   secretKey: string,
   vendorId: string,
-  wingSettings: any
+  wingSettings: any,
+  notices?: any[]
 ): Promise<{ success: boolean; productId?: string; error?: string; details?: any; payload?: any }> {
   const method = "POST";
   const path = `/v2/providers/seller_api/apis/api/v1/marketplace/seller-products`;
@@ -556,7 +562,7 @@ async function uploadProduct(
     }
 
     // Transform product to Coupang format
-    const payload = transformProductToCoupangFormat(product, vendorId, wingSettings);
+    const payload = transformProductToCoupangFormat(product, vendorId, wingSettings, notices);
     
     console.log('[Upload] Uploading product:', product.productName);
     console.log('[Upload] Payload:', JSON.stringify(payload, null, 2).slice(0, 2000));
@@ -630,13 +636,29 @@ async function batchUpload(
   let successCount = 0;
   let failedCount = 0;
 
+  // Cache for category metadata to avoid duplicate API calls
+  const categoryMetaCache = new Map<number, any>();
+
   // Process one at a time with 150ms delay (ensuring under 10 per second)
   for (let i = 0; i < products.length; i++) {
     const product = products[i];
     
     console.log(`[Batch] Processing product ${i + 1}/${products.length}: ${product.productName}`);
+
+    // Fetch category metadata and generate notices
+    let notices: any[] = [];
+    try {
+      const categoryCode = extractDisplayCategoryCode(product.category);
+      if (categoryCode > 0) {
+        const meta = await fetchCategoryRelatedMeta(categoryCode, accessKey, secretKey, categoryMetaCache);
+        notices = buildNoticesFromCategoryMeta(product, wingSettings, meta);
+        console.log(`[Batch] Generated ${notices.length} notice(s) for product ${i + 1}`);
+      }
+    } catch (err) {
+      console.error(`[Batch] Failed to fetch category meta for product ${i + 1}:`, err);
+    }
     
-    const result = await uploadProduct(product, accessKey, secretKey, vendorId, wingSettings);
+    const result = await uploadProduct(product, accessKey, secretKey, vendorId, wingSettings, notices);
     
     results.push({
       productIndex: i,
@@ -972,11 +994,99 @@ serve(async (req) => {
         );
       }
 
+      case 'recommend-category': {
+        // Recommend a category based on product name/description using Coupang's API
+        const { productName, productDescription, brand, attributes: attrs } = await req.json();
+        
+        if (!productName) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Product name is required for category recommendation.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const method = 'POST';
+        const path = '/v2/providers/openapi/apis/api/v1/categorization/predict';
+        const query = '';
+
+        const body: any = { productName };
+        if (productDescription) body.productDescription = productDescription;
+        if (brand) body.brand = brand;
+        if (attrs) body.attributes = attrs;
+
+        console.log('[RecommendCategory] Request:', JSON.stringify(body));
+
+        const { authorization } = await generateHmacSignature(method, path, query, secretKey, accessKey);
+
+        const response = await fetch(`https://api-gateway.coupang.com${path}`, {
+          method,
+          headers: {
+            'Authorization': authorization,
+            'Content-Type': 'application/json;charset=UTF-8'
+          },
+          body: JSON.stringify(body)
+        });
+
+        const responseText = await response.text();
+        console.log('[RecommendCategory] Response:', response.status, responseText.slice(0, 500));
+
+        if (response.status !== 200) {
+          return new Response(
+            JSON.stringify({ success: false, error: `Category recommendation failed: ${responseText.slice(0, 200)}` }),
+            { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const data = JSON.parse(responseText);
+        const result = data?.data;
+
+        if (result?.autoCategorizationPredictionResultType === 'SUCCESS') {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              categoryCode: result.predictedCategoryId,
+              categoryName: result.predictedCategoryName,
+              message: `Recommended category: ${result.predictedCategoryName} (${result.predictedCategoryId})`
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: result?.comment || 'Could not determine category. Please provide more detailed product information.',
+              resultType: result?.autoCategorizationPredictionResultType
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      case 'validate-category': {
+        // Check if a category code is valid
+        const { categoryCode } = await req.json();
+        
+        if (!categoryCode) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Category code is required.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const cache = new Map<number, boolean>();
+        const isValid = await fetchDisplayCategoryStatus(parseInt(categoryCode), accessKey, secretKey, cache);
+
+        return new Response(
+          JSON.stringify({ success: true, valid: isValid, categoryCode }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: `Unknown action: ${action}. Supported actions: validate, upload, validate-products, test-signature, fetch-shipping-centers` 
+            error: `Unknown action: ${action}. Supported actions: validate, upload, validate-products, test-signature, fetch-shipping-centers, recommend-category, validate-category` 
           }),
           { 
             status: 400, 

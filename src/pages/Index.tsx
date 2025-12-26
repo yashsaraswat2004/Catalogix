@@ -515,6 +515,7 @@ const Index = () => {
                   selectedIds={selectedIds}
                   onSelectionChange={setSelectedIds}
                   onProductUpdate={handleProductUpdate}
+                  credentials={credentials}
                 />
               </section>
             )}

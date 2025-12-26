@@ -291,6 +291,88 @@ export function useCoupangApi() {
     }
   }, []);
 
+  // Recommend a category based on product name/description
+  const recommendCategory = useCallback(async (
+    credentials: CoupangApiCredentials,
+    productName: string,
+    productDescription?: string,
+    brand?: string
+  ): Promise<{ success: boolean; categoryCode?: string; categoryName?: string; message: string }> => {
+    setIsValidating(true);
+    setError(null);
+    logMode();
+
+    try {
+      console.log('[CoupangAPI] Recommending category for:', productName);
+      
+      const { data, error: fnError } = await invokeFunction('coupang-api', {
+        action: 'recommend-category',
+        credentials: {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
+        },
+        productName,
+        productDescription,
+        brand,
+      });
+
+      if (fnError) {
+        const message = fnError.message || 'Category recommendation failed';
+        setError(message);
+        return { success: false, message };
+      }
+
+      if (data?.success) {
+        return { 
+          success: true, 
+          categoryCode: data.categoryCode,
+          categoryName: data.categoryName,
+          message: data.message || 'Category recommended' 
+        };
+      }
+
+      return { success: false, message: data?.error || 'Category recommendation failed' };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error';
+      setError(message);
+      return { success: false, message };
+    } finally {
+      setIsValidating(false);
+    }
+  }, []);
+
+  // Validate a category code
+  const validateCategory = useCallback(async (
+    credentials: CoupangApiCredentials,
+    categoryCode: string
+  ): Promise<{ success: boolean; valid: boolean; message: string }> => {
+    try {
+      const { data, error: fnError } = await invokeFunction('coupang-api', {
+        action: 'validate-category',
+        credentials: {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
+        },
+        categoryCode,
+      });
+
+      if (fnError) {
+        return { success: false, valid: false, message: fnError.message || 'Validation failed' };
+      }
+
+      return { 
+        success: true, 
+        valid: data?.valid || false,
+        message: data?.valid ? 'Category is valid' : 'Category is invalid or not a leaf category'
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error';
+      return { success: false, valid: false, message };
+    }
+  }, []);
+
   return {
     isValidating,
     isUploading,
@@ -302,6 +384,8 @@ export function useCoupangApi() {
     testSignature,
     fetchShippingCenters,
     translateProducts,
+    recommendCategory,
+    validateCategory,
     clearError: () => setError(null),
   };
 }
