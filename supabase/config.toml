@@ -2,3 +2,6 @@ project_id = "wwozgtcconpaoryxbpvo"
 
 [functions.coupang-api]
 verify_jwt = false
+
+[functions.translate-product]
+verify_jwt = false

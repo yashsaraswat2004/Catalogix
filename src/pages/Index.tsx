@@ -34,6 +34,7 @@ const DEFAULT_WING_SETTINGS: WingSettings = {
   returnAddressDetail: '',
   outboundShippingPlaceCode: '',
   deliveryCompanyCode: '',
+  countryCode: '',
   vendorUserId: '',
 };
 
@@ -49,9 +50,10 @@ const Index = () => {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [uploadResults, setUploadResults] = useState<UploadResult[] | null>(null);
   const [activeTab, setActiveTab] = useState('upload');
+  const [isTranslating, setIsTranslating] = useState(false);
   
   const { toast } = useToast();
-  const { validateCredentials, dryRun, uploadProducts, isValidating, isUploading } = useCoupangApi();
+  const { validateCredentials, dryRun, uploadProducts, translateProducts, isValidating, isUploading } = useCoupangApi();
 
   // Load credentials and settings from localStorage
   useEffect(() => {
@@ -250,12 +252,46 @@ const Index = () => {
     
     if (!credentials) return;
     
-    const toUpload = getProductsToUpload();
+    let toUpload = getProductsToUpload();
     setIsProcessing(true);
     setUploadProgress({ current: 0, total: toUpload.length });
     setUploadResults(null);
 
     try {
+      // Check if any products need translation (from English CSV)
+      const needsTranslation = toUpload.some(p => p.data.needsTranslation);
+      
+      if (needsTranslation) {
+        setIsTranslating(true);
+        toast({
+          title: "Translating to Korean",
+          description: "Translating English product data to Korean...",
+        });
+        
+        const translationResult = await translateProducts(toUpload);
+        setIsTranslating(false);
+        
+        if (translationResult.success) {
+          toUpload = translationResult.products;
+          // Update products in state with translated versions
+          setProducts(prev => prev.map(p => {
+            const translated = translationResult.products.find(tp => tp.id === p.id);
+            return translated || p;
+          }));
+          
+          toast({
+            title: "Translation Complete",
+            description: translationResult.message,
+          });
+        } else {
+          toast({
+            title: "Translation Warning",
+            description: "Some products could not be translated. Proceeding with original text.",
+            variant: "destructive",
+          });
+        }
+      }
+
       const result = await uploadProducts(
         credentials,
         wingSettings,
