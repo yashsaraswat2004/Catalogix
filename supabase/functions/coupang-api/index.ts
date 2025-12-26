@@ -658,6 +658,9 @@ serve(async (req) => {
 
       case 'fetch-shipping-centers': {
         // Fetch return shipping centers and outbound shipping places from Coupang API
+        // Docs: 
+        // - Shipping places: https://developers.coupangcorp.com/hc/en-us/articles/360033644754-Query-a-shipping-location
+        // - Return centers: Created through WING or return location creation API
         console.log('[API] Fetching shipping centers for vendor:', vendorId);
         
         const results: { returnCenters: any[]; shippingPlaces: any[]; error?: string } = {
@@ -665,13 +668,13 @@ serve(async (req) => {
           shippingPlaces: []
         };
 
-        // Fetch return shipping centers
+        // Fetch return shipping centers (v4 API)
         try {
           const returnPath = `/v2/providers/openapi/apis/api/v4/vendors/${vendorId}/returnShippingCenters`;
           const returnQuery = `pageSize=50&pageNum=1`;
           const { authorization: returnAuth } = await generateHmacSignature('GET', returnPath, returnQuery, secretKey, accessKey);
           
-          console.log('[API] Fetching return centers...');
+          console.log('[API] Fetching return centers from:', returnPath);
           const returnResponse = await fetch(`https://api-gateway.coupang.com${returnPath}?${returnQuery}`, {
             method: 'GET',
             headers: {
@@ -690,6 +693,7 @@ serve(async (req) => {
                 code: center.returnCenterCode,
                 name: center.shippingPlaceName || center.returnCenterName || 'Unknown',
                 address: center.returnAddress || '',
+                addressDetail: center.returnAddressDetail || '',
                 zipCode: center.returnZipCode || '',
                 contactNumber: center.companyContactNumber || ''
               }));
@@ -699,13 +703,14 @@ serve(async (req) => {
           console.error('[API] Error fetching return centers:', err);
         }
 
-        // Fetch outbound shipping places
+        // Fetch outbound shipping places using marketplace_openapi (v2 API)
+        // Endpoint: /v2/providers/marketplace_openapi/apis/api/v2/vendor/shipping-place/outbound
         try {
-          const shippingPath = `/v2/providers/openapi/apis/api/v4/vendors/${vendorId}/outboundShippingCenters`;
-          const shippingQuery = `pageSize=50&pageNum=1`;
+          const shippingPath = `/v2/providers/marketplace_openapi/apis/api/v2/vendor/shipping-place/outbound`;
+          const shippingQuery = `vendorId=${vendorId}`;
           const { authorization: shippingAuth } = await generateHmacSignature('GET', shippingPath, shippingQuery, secretKey, accessKey);
           
-          console.log('[API] Fetching outbound shipping places...');
+          console.log('[API] Fetching outbound shipping places from:', shippingPath);
           const shippingResponse = await fetch(`https://api-gateway.coupang.com${shippingPath}?${shippingQuery}`, {
             method: 'GET',
             headers: {
@@ -719,12 +724,14 @@ serve(async (req) => {
           
           if (shippingResponse.status === 200) {
             const shippingData = JSON.parse(shippingText);
-            if (shippingData.data && Array.isArray(shippingData.data)) {
-              results.shippingPlaces = shippingData.data.map((place: any) => ({
-                code: place.outboundShippingPlaceCode,
-                name: place.shippingPlaceName || 'Unknown',
-                address: place.placeAddresses?.[0]?.returnAddress || '',
-                zipCode: place.placeAddresses?.[0]?.returnZipCode || ''
+            // Response structure: { code, message, data: { content: [...] } }
+            const content = shippingData.data?.content || shippingData.data || [];
+            if (Array.isArray(content)) {
+              results.shippingPlaces = content.map((place: any) => ({
+                code: place.outboundShippingPlaceCode || place.shippingPlaceCode,
+                name: place.shippingPlaceName || place.placeName || 'Unknown',
+                address: place.placeAddresses?.[0]?.returnAddress || place.address || '',
+                zipCode: place.placeAddresses?.[0]?.returnZipCode || place.zipCode || ''
               }));
             }
           }
@@ -736,7 +743,10 @@ serve(async (req) => {
           JSON.stringify({
             success: true,
             ...results,
-            message: `Found ${results.returnCenters.length} return center(s) and ${results.shippingPlaces.length} shipping place(s).`
+            message: `Found ${results.returnCenters.length} return center(s) and ${results.shippingPlaces.length} shipping place(s).`,
+            note: results.returnCenters.length === 0 
+              ? 'If no return centers found, create one in WING or use "NO_RETURN_CENTERCODE" to manually add return location info.'
+              : undefined
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
