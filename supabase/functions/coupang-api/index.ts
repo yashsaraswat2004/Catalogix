@@ -591,7 +591,11 @@ async function uploadProduct(
       responseData = { rawResponse: responseText };
     }
 
-    if (response.status === 200 || response.status === 201) {
+    // Coupang returns HTTP 200 even for errors - check the response code field
+    const isHttpSuccess = response.status === 200 || response.status === 201;
+    const isCoupangSuccess = responseData.code === 'SUCCESS';
+    
+    if (isHttpSuccess && isCoupangSuccess) {
       return {
         success: true,
         productId: responseData.data?.sellerProductId || responseData.sellerProductId,
@@ -601,13 +605,17 @@ async function uploadProduct(
     } else {
       // Extract detailed error message from Coupang response
       let errorMsg = `HTTP ${response.status}`;
-      if (responseData.message) {
+      if (responseData.code === 'ERROR' && responseData.message) {
+        errorMsg = responseData.message;
+      } else if (responseData.message) {
         errorMsg = responseData.message;
       } else if (responseData.data?.message) {
         errorMsg = responseData.data.message;
       } else if (responseData.error) {
         errorMsg = responseData.error;
       }
+      
+      console.log('[Upload] Product rejected by Coupang:', errorMsg);
       
       return {
         success: false,
