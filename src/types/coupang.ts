@@ -270,6 +270,7 @@ export interface WingSettings {
   // Shipping Info
   outboundShippingPlaceCode: string;
   deliveryCompanyCode: string;
+  countryCode?: string; // Country code from shipping place (KR = domestic, others = overseas)
   
   // Vendor Info
   vendorUserId: string;
@@ -471,5 +472,6 @@ export const WING_SETTINGS_LABELS: Record<keyof WingSettings, string> = {
   returnAddressDetail: 'Return Address Detail',
   outboundShippingPlaceCode: 'Shipping Place Code',
   deliveryCompanyCode: 'Courier Code',
+  countryCode: 'Country Code',
   vendorUserId: 'Wing Login ID',
 };

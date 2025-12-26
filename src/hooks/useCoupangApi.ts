@@ -201,7 +201,7 @@ export function useCoupangApi() {
   ): Promise<{
     success: boolean;
     returnCenters: Array<{ code: string; name: string; address: string; zipCode: string; contactNumber: string }>;
-    shippingPlaces: Array<{ code: string; name: string; address: string; zipCode: string }>;
+    shippingPlaces: Array<{ code: string; name: string; address: string; zipCode: string; countryCode?: string }>;
     message: string;
   }> => {
     setIsValidating(true);
