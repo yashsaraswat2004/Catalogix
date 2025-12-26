@@ -11,7 +11,10 @@ function getBackendMode(): 'cloud' | 'local' {
 }
 
 export async function invokeFunction(functionName: string, body: any) {
-  const useLocal = getBackendMode() === 'local';
+  // Only route Coupang API calls through the local functions server (for IP whitelisting).
+  // Other helper functions (e.g. translation) should use the cloud backend.
+  const backendMode = getBackendMode();
+  const useLocal = backendMode === 'local' && functionName === 'coupang-api';
   
   if (useLocal) {
     console.log(`[Local] Calling local function: ${functionName}`);

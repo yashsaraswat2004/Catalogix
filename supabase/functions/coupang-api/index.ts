@@ -403,7 +403,7 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
   // - Wing settings country code is not KR
   // For overseas products, deliveryMethod must be "AGENT" (구매대행)
   const isOverseas = product.overseasPurchase || (wingSettings.countryCode && wingSettings.countryCode !== 'KR');
-  const deliveryMethod = isOverseas ? "AGENT" : "SEQUENCIAL";
+  const deliveryMethod = isOverseas ? "AGENT_BUY" : "SEQUENCIAL";
 
   // Clean and truncate brand name (max 100 chars)
   let cleanBrand = (product.brand || "").trim();
@@ -424,7 +424,7 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     generalProductName: (product.productName || "").substring(0, 100),
     productGroup: "",
     deliveryMethod: deliveryMethod,
-    deliveryCompanyCode: isOverseas ? "DIRECT" : (wingSettings.deliveryCompanyCode || "CJGLS"),
+    deliveryCompanyCode: (wingSettings.deliveryCompanyCode || "CJGLS"),
     deliveryChargeType: "FREE",
     deliveryCharge: 0,
     freeShipOverAmount: 0,
