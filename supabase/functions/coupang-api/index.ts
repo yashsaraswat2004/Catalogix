@@ -46,9 +46,191 @@ async function generateHmacSignature(
   return { authorization, datetime };
 }
 
+// Helpers ------------------------------------------------------------
+
+function extractDisplayCategoryCode(category: any): number {
+  if (!category) return 0;
+  const parts = String(category).split('>');
+  const lastPart = parts[parts.length - 1].trim();
+  const parsed = parseInt(lastPart, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function fetchDisplayCategoryStatus(
+  displayCategoryCode: number,
+  accessKey: string,
+  secretKey: string,
+  cache: Map<number, boolean>
+): Promise<boolean> {
+  const cached = cache.get(displayCategoryCode);
+  if (cached !== undefined) return cached;
+
+  const method = 'GET';
+  const path = `/v2/providers/seller_api/apis/api/v1/marketplace/meta/display-categories/${displayCategoryCode}/status`;
+  const query = '';
+
+  const { authorization } = await generateHmacSignature(method, path, query, secretKey, accessKey);
+
+  const response = await fetch(`https://api-gateway.coupang.com${path}`, {
+    method,
+    headers: {
+      'Authorization': authorization,
+      'Content-Type': 'application/json;charset=UTF-8'
+    }
+  });
+
+  const responseText = await response.text();
+
+  if (response.status !== 200) {
+    console.log('[CategoryStatus] Non-200 response:', response.status, responseText.slice(0, 500));
+    cache.set(displayCategoryCode, false);
+    return false;
+  }
+
+  try {
+    const json = JSON.parse(responseText);
+    const ok = json?.code === 'SUCCESS' && json?.data === true;
+    cache.set(displayCategoryCode, ok);
+    return ok;
+  } catch {
+    cache.set(displayCategoryCode, false);
+    return false;
+  }
+}
+
+async function fetchCategoryRelatedMeta(
+  displayCategoryCode: number,
+  accessKey: string,
+  secretKey: string,
+  cache: Map<number, any>
+): Promise<any> {
+  const cached = cache.get(displayCategoryCode);
+  if (cached) return cached;
+
+  const method = 'GET';
+  const path = `/v2/providers/seller_api/apis/api/v1/marketplace/meta/category-related-metas/display-category-codes/${displayCategoryCode}`;
+  const query = '';
+
+  const { authorization } = await generateHmacSignature(method, path, query, secretKey, accessKey);
+
+  console.log('[CategoryMeta] Fetching metadata for displayCategoryCode:', displayCategoryCode);
+
+  const response = await fetch(`https://api-gateway.coupang.com${path}`, {
+    method,
+    headers: {
+      'Authorization': authorization,
+      'Content-Type': 'application/json;charset=UTF-8'
+    }
+  });
+
+  const responseText = await response.text();
+
+  if (response.status !== 200) {
+    console.log('[CategoryMeta] Non-200 response:', response.status, responseText.slice(0, 500));
+    throw new Error(`Category metadata API returned ${response.status}`);
+  }
+
+  const json = JSON.parse(responseText);
+  const meta = Array.isArray(json?.data) ? json.data[0] : json?.data;
+
+  cache.set(displayCategoryCode, meta);
+  return meta;
+}
+
+function getAutoNoticeContent(detailName: string, product: any, wingSettings: any): string {
+  const normalized = String(detailName || '').replace(/\s+/g, '');
+
+  const productName = String(product?.productName || '').trim();
+  const modelNo = String(product?.modelNumber || product?.modelNo || '').trim();
+  const manufacturer = String(product?.manufacturer || product?.brand || '').trim();
+  const contact = String(wingSettings?.companyContactNumber || '').trim();
+  const countryCode = String(wingSettings?.countryCode || 'KR').trim();
+
+  if (normalized.includes('품명') || normalized.includes('모델명')) {
+    return modelNo ? `${productName} (${modelNo})` : (productName || '상세페이지 참조');
+  }
+
+  if (normalized.includes('인증')) {
+    return '해당없음';
+  }
+
+  if (normalized.includes('제조국') || normalized.includes('원산지')) {
+    return countryCode && countryCode !== 'KR' ? '해외(상세페이지 참조)' : '대한민국';
+  }
+
+  if (normalized.includes('제조자') || normalized.includes('수입자')) {
+    return manufacturer || '상세페이지 참조';
+  }
+
+  if (normalized.includes('전화번호') || normalized.includes('A/S') || normalized.includes('AS')) {
+    return contact || '상세페이지 참조';
+  }
+
+  if (normalized.includes('출시')) {
+    // YYYYMM
+    const now = new Date();
+    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  if (normalized.includes('크기') || normalized.includes('사이즈') || normalized.includes('용량') || normalized.includes('중량')) {
+    return '상세페이지 참조';
+  }
+
+  if (normalized.includes('품질보증')) {
+    return '관련 법령 및 소비자분쟁해결기준에 따름';
+  }
+
+  return '상세페이지 참조';
+}
+
+function buildNoticesFromCategoryMeta(product: any, wingSettings: any, meta: any): any[] {
+  const noticeCategories = meta?.noticeCategories;
+  if (!Array.isArray(noticeCategories) || noticeCategories.length === 0) return [];
+
+  const preferredName = String(product?.noticeCategory || '').trim();
+
+  let chosen = preferredName
+    ? noticeCategories.find((c: any) => String(c?.noticeCategoryName || '').trim() === preferredName)
+    : undefined;
+
+  if (!chosen) {
+    // Pick the notice category with the smallest number of mandatory fields (easiest to satisfy)
+    chosen = noticeCategories
+      .map((c: any) => {
+        const details = Array.isArray(c?.noticeCategoryDetailNames) ? c.noticeCategoryDetailNames : [];
+        const mandatoryCount = details.filter((d: any) => String(d?.required || '').toUpperCase() === 'MANDATORY').length;
+        return { c, mandatoryCount };
+      })
+      .sort((a: any, b: any) => a.mandatoryCount - b.mandatoryCount)[0]?.c;
+  }
+
+  if (!chosen) return [];
+
+  const details = Array.isArray(chosen?.noticeCategoryDetailNames) ? chosen.noticeCategoryDetailNames : [];
+  const mandatoryDetails = details.filter((d: any) => String(d?.required || '').toUpperCase() === 'MANDATORY');
+
+  const providedValues = Array.isArray(product?.noticeValues)
+    ? product.noticeValues.map((v: any) => String(v).trim()).filter(Boolean)
+    : [];
+
+  let cursor = 0;
+
+  return mandatoryDetails.map((d: any) => {
+    const detailName = String(d?.noticeCategoryDetailName || '').trim();
+    const provided = providedValues[cursor];
+    const content = provided ? (cursor++, provided) : getAutoNoticeContent(detailName, product, wingSettings);
+
+    return {
+      noticeCategoryName: chosen.noticeCategoryName,
+      noticeCategoryDetailName: detailName,
+      content,
+    };
+  });
+}
+
 // Transform internal product format to exact Coupang API format
 // Reference: https://developers.coupangcorp.com/hc/en-us/articles/360033877853-Product-Creation
-function transformProductToCoupangFormat(product: any, vendorId: string, wingSettings: any): any {
+function transformProductToCoupangFormat(product: any, vendorId: string, wingSettings: any, notices?: any[]): any {
   // Extract category code - if it's a path like "123>456>789", take the last one
   let categoryCode = 0;
   if (product.category) {
