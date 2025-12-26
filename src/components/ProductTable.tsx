@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ParsedProduct, FIELD_LABELS_EN, CoupangProduct, EDITABLE_FIELDS } from '@/types/coupang';
+import { ParsedProduct, FIELD_LABELS_EN, CoupangProduct, EDITABLE_FIELDS, CoupangApiCredentials } from '@/types/coupang';
 import { revalidateProduct, COLUMN_INDICES } from '@/lib/xlsxParser';
 import { 
   Table, 
@@ -26,7 +26,9 @@ import {
   Pencil,
   Save,
   X,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Sparkles,
+  FolderTree
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -35,18 +37,29 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
+import { useCoupangApi } from '@/hooks/useCoupangApi';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ProductTableProps {
   products: ParsedProduct[];
   selectedIds: Set<string>;
   onSelectionChange: (ids: Set<string>) => void;
   onProductUpdate?: (updatedProduct: ParsedProduct) => void;
+  credentials?: CoupangApiCredentials | null;
 }
 
-export function ProductTable({ products, selectedIds, onSelectionChange, onProductUpdate }: ProductTableProps) {
+export function ProductTable({ products, selectedIds, onSelectionChange, onProductUpdate, credentials }: ProductTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
   const [editedData, setEditedData] = useState<Partial<CoupangProduct>>({});
+  const [recommendingCategory, setRecommendingCategory] = useState<string | null>(null);
+
+  const { recommendCategory } = useCoupangApi();
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows);
@@ -115,6 +128,58 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
 
   const updateField = (field: keyof CoupangProduct, value: string | number) => {
     setEditedData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleRecommendCategory = async (product: ParsedProduct) => {
+    if (!credentials) {
+      toast.error('Please configure API credentials first');
+      return;
+    }
+
+    setRecommendingCategory(product.id);
+    
+    try {
+      const result = await recommendCategory(
+        credentials,
+        product.data.productName || '',
+        product.data.detailedDescription,
+        product.data.brand
+      );
+
+      if (result.success && result.categoryCode) {
+        // Update the product with the recommended category
+        if (onProductUpdate) {
+          const updatedProduct: ParsedProduct = {
+            ...product,
+            data: { 
+              ...product.data, 
+              category: result.categoryCode 
+            },
+          };
+          const revalidated = revalidateProduct(updatedProduct);
+          onProductUpdate(revalidated);
+        }
+        
+        toast.success(`Category set: ${result.categoryName} (${result.categoryCode})`);
+      } else {
+        toast.error(result.message || 'Could not recommend category');
+      }
+    } catch (err) {
+      toast.error('Failed to recommend category');
+    } finally {
+      setRecommendingCategory(null);
+    }
+  };
+
+  const handleManualCategoryChange = (product: ParsedProduct, newCategory: string) => {
+    if (!onProductUpdate) return;
+    
+    const updatedProduct: ParsedProduct = {
+      ...product,
+      data: { ...product.data, category: newCategory },
+    };
+    const revalidated = revalidateProduct(updatedProduct);
+    onProductUpdate(revalidated);
   };
 
   const getStatusIcon = (status: ParsedProduct['status']) => {
@@ -377,8 +442,49 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                                 <dd>{renderEditableField(product, 'productName')}</dd>
                               </div>
                               <div className="space-y-1">
-                                <dt className="text-muted-foreground text-xs">Category</dt>
-                                <dd className="font-medium text-xs break-all">{product.data.category || '-'}</dd>
+                                <dt className="text-muted-foreground text-xs flex items-center gap-1">
+                                  Category
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <FolderTree className="w-3 h-3 text-muted-foreground" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="text-xs max-w-xs">Coupang leaf category code. Use "Recommend" to auto-detect or enter manually.</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </dt>
+                                <dd className="flex items-center gap-2">
+                                  <Input
+                                    value={editingProduct === product.id 
+                                      ? (editedData.category || product.data.category || '') 
+                                      : (product.data.category || '')}
+                                    onChange={(e) => {
+                                      if (editingProduct === product.id) {
+                                        updateField('category', e.target.value);
+                                      } else {
+                                        handleManualCategoryChange(product, e.target.value);
+                                      }
+                                    }}
+                                    placeholder="Enter category code"
+                                    className="h-7 text-xs w-32 font-mono"
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-xs gap-1"
+                                    onClick={() => handleRecommendCategory(product)}
+                                    disabled={recommendingCategory === product.id || !credentials}
+                                  >
+                                    {recommendingCategory === product.id ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Sparkles className="w-3 h-3" />
+                                    )}
+                                    {recommendingCategory === product.id ? 'Checking...' : 'Recommend'}
+                                  </Button>
+                                </dd>
                               </div>
                               <div className="space-y-1">
                                 <dt className="text-muted-foreground text-xs">Brand</dt>
