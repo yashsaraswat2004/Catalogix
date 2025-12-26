@@ -705,12 +705,14 @@ serve(async (req) => {
 
         // Fetch outbound shipping places using marketplace_openapi (v2 API)
         // Endpoint: /v2/providers/marketplace_openapi/apis/api/v2/vendor/shipping-place/outbound
+        // Docs: https://developers.coupangcorp.com/hc/en-us/articles/360033644754-Query-a-shipping-location
+        // Required params: pageNum & pageSize (NOT vendorId)
         try {
           const shippingPath = `/v2/providers/marketplace_openapi/apis/api/v2/vendor/shipping-place/outbound`;
-          const shippingQuery = `vendorId=${vendorId}`;
+          const shippingQuery = `pageNum=1&pageSize=50`;
           const { authorization: shippingAuth } = await generateHmacSignature('GET', shippingPath, shippingQuery, secretKey, accessKey);
           
-          console.log('[API] Fetching outbound shipping places from:', shippingPath);
+          console.log('[API] Fetching outbound shipping places from:', shippingPath, 'with query:', shippingQuery);
           const shippingResponse = await fetch(`https://api-gateway.coupang.com${shippingPath}?${shippingQuery}`, {
             method: 'GET',
             headers: {
@@ -720,23 +722,32 @@ serve(async (req) => {
           });
 
           const shippingText = await shippingResponse.text();
-          console.log('[API] Shipping places response:', shippingResponse.status, shippingText.slice(0, 500));
+          console.log('[API] Shipping places response:', shippingResponse.status, shippingText.slice(0, 1000));
           
           if (shippingResponse.status === 200) {
             const shippingData = JSON.parse(shippingText);
-            // Response structure: { code, message, data: { content: [...] } }
-            const content = shippingData.data?.content || shippingData.data || [];
+            // Response structure: { content: [...], pagination: {...} }
+            const content = shippingData.content || shippingData.data?.content || [];
+            console.log('[API] Shipping places content:', JSON.stringify(content).slice(0, 500));
+            
             if (Array.isArray(content)) {
               results.shippingPlaces = content.map((place: any) => ({
-                code: place.outboundShippingPlaceCode || place.shippingPlaceCode,
-                name: place.shippingPlaceName || place.placeName || 'Unknown',
-                address: place.placeAddresses?.[0]?.returnAddress || place.address || '',
-                zipCode: place.placeAddresses?.[0]?.returnZipCode || place.zipCode || ''
+                code: place.outboundShippingPlaceCode,
+                name: place.shippingPlaceName || 'Unknown',
+                address: place.placeAddresses?.[0]?.returnAddress || '',
+                addressDetail: place.placeAddresses?.[0]?.returnAddressDetail || '',
+                zipCode: place.placeAddresses?.[0]?.returnZipCode || '',
+                contactNumber: place.placeAddresses?.[0]?.companyContactNumber || '',
+                usable: place.usable
               }));
             }
+          } else {
+            console.log('[API] Shipping places error response:', shippingText);
+            results.error = `Shipping places API returned ${shippingResponse.status}: ${shippingText.slice(0, 200)}`;
           }
         } catch (err) {
           console.error('[API] Error fetching shipping places:', err);
+          results.error = `Error fetching shipping places: ${err instanceof Error ? err.message : 'Unknown error'}`;
         }
 
         return new Response(
