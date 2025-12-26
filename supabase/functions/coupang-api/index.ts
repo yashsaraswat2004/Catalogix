@@ -688,8 +688,20 @@ serve(async (req) => {
           
           if (returnResponse.status === 200) {
             const returnData = JSON.parse(returnText);
-            if (returnData.data && Array.isArray(returnData.data)) {
-              results.returnCenters = returnData.data.map((center: any) => ({
+
+            // Observed response shape (v4):
+            // { code: 200, message: "SUCCESS", data: { content: [...] } }
+            const content =
+              Array.isArray(returnData?.data)
+                ? returnData.data
+                : Array.isArray(returnData?.data?.content)
+                  ? returnData.data.content
+                  : Array.isArray(returnData?.content)
+                    ? returnData.content
+                    : [];
+
+            if (Array.isArray(content)) {
+              results.returnCenters = content.map((center: any) => ({
                 code: center.returnCenterCode,
                 name: center.shippingPlaceName || center.returnCenterName || 'Unknown',
                 address: center.returnAddress || '',
@@ -698,6 +710,8 @@ serve(async (req) => {
                 contactNumber: center.companyContactNumber || ''
               }));
             }
+          } else {
+            console.log('[API] Return centers error response:', returnText);
           }
         } catch (err) {
           console.error('[API] Error fetching return centers:', err);
@@ -767,7 +781,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: `Unknown action: ${action}. Supported actions: validate, upload, validate-products, test-signature` 
+            error: `Unknown action: ${action}. Supported actions: validate, upload, validate-products, test-signature, fetch-shipping-centers` 
           }),
           { 
             status: 400, 
