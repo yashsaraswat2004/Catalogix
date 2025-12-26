@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileSpreadsheet, X, AlertCircle, Languages } from 'lucide-react';
+import { Upload, FileSpreadsheet, X, AlertCircle, Languages, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { parseXlsxFile } from '@/lib/xlsxParser';
 import { parseCsvFile, isCsvFile } from '@/lib/csvParser';
@@ -139,9 +139,18 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
                 {isDragActive ? 'Drop the file here' : 'Drag & drop or click to upload'}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                Supports XLSX, XLSM, CSV files
+                Supports XLSX, XLSM, CSV files (English CSV auto-translates to Korean)
               </p>
             </div>
+            <a
+              href="/sample-product-template.csv"
+              download="sample-product-template.csv"
+              onClick={(e) => e.stopPropagation()}
+              className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              <Download className="w-3 h-3" />
+              Download sample CSV template
+            </a>
           </div>
         )}
 
