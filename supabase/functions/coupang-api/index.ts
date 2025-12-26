@@ -688,7 +688,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, credentials, products, wingSettings, dryRun } = await req.json();
+    const body = await req.json();
+    const { action, credentials, products, wingSettings, dryRun, productName, productDescription, brand, attributes: reqAttributes, categoryCode: reqCategoryCode } = body;
 
     console.log('[API] Action:', action, '| Products count:', products?.length || 0, '| Dry run:', dryRun);
 
@@ -996,7 +997,7 @@ serve(async (req) => {
 
       case 'recommend-category': {
         // Recommend a category based on product name/description using Coupang's API
-        const { productName, productDescription, brand, attributes: attrs } = await req.json();
+        // Use productName, productDescription, brand, reqAttributes from the already-parsed body
         
         if (!productName) {
           return new Response(
@@ -1009,12 +1010,12 @@ serve(async (req) => {
         const path = '/v2/providers/openapi/apis/api/v1/categorization/predict';
         const query = '';
 
-        const body: any = { productName };
-        if (productDescription) body.productDescription = productDescription;
-        if (brand) body.brand = brand;
-        if (attrs) body.attributes = attrs;
+        const requestBody: any = { productName };
+        if (productDescription) requestBody.productDescription = productDescription;
+        if (brand) requestBody.brand = brand;
+        if (reqAttributes) requestBody.attributes = reqAttributes;
 
-        console.log('[RecommendCategory] Request:', JSON.stringify(body));
+        console.log('[RecommendCategory] Request:', JSON.stringify(requestBody));
 
         const { authorization } = await generateHmacSignature(method, path, query, secretKey, accessKey);
 
@@ -1024,7 +1025,7 @@ serve(async (req) => {
             'Authorization': authorization,
             'Content-Type': 'application/json;charset=UTF-8'
           },
-          body: JSON.stringify(body)
+          body: JSON.stringify(requestBody)
         });
 
         const responseText = await response.text();
@@ -1063,10 +1064,9 @@ serve(async (req) => {
       }
 
       case 'validate-category': {
-        // Check if a category code is valid
-        const { categoryCode } = await req.json();
+        // Check if a category code is valid - use reqCategoryCode from already-parsed body
         
-        if (!categoryCode) {
+        if (!reqCategoryCode) {
           return new Response(
             JSON.stringify({ success: false, error: 'Category code is required.' }),
             { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1074,10 +1074,10 @@ serve(async (req) => {
         }
 
         const cache = new Map<number, boolean>();
-        const isValid = await fetchDisplayCategoryStatus(parseInt(categoryCode), accessKey, secretKey, cache);
+        const isValid = await fetchDisplayCategoryStatus(parseInt(reqCategoryCode), accessKey, secretKey, cache);
 
         return new Response(
-          JSON.stringify({ success: true, valid: isValid, categoryCode }),
+          JSON.stringify({ success: true, valid: isValid, categoryCode: reqCategoryCode }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
