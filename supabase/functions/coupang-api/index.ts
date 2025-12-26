@@ -228,9 +228,283 @@ function buildNoticesFromCategoryMeta(product: any, wingSettings: any, meta: any
   });
 }
 
+// ============ RULE 2 & 3: Category-Specific Required Attributes ============
+// Parse required attributes from category metadata and auto-fill based on product info
+function buildAttributesFromCategoryMeta(product: any, meta: any): any[] {
+  const attributes: any[] = [];
+  
+  // First, add any explicitly provided attributes from product
+  const providedAttributes = new Set<string>();
+  
+  if (product.optionType1 && product.optionValue1) {
+    attributes.push({
+      attributeTypeName: product.optionType1.substring(0, 25),
+      attributeValueName: product.optionValue1.substring(0, 30)
+    });
+    providedAttributes.add(product.optionType1.toLowerCase());
+  }
+  if (product.optionType2 && product.optionValue2) {
+    attributes.push({
+      attributeTypeName: product.optionType2.substring(0, 25),
+      attributeValueName: product.optionValue2.substring(0, 30)
+    });
+    providedAttributes.add(product.optionType2.toLowerCase());
+  }
+  if (product.optionType3 && product.optionValue3) {
+    attributes.push({
+      attributeTypeName: product.optionType3.substring(0, 25),
+      attributeValueName: product.optionValue3.substring(0, 30)
+    });
+    providedAttributes.add(product.optionType3.toLowerCase());
+  }
+  if (product.optionType4 && product.optionValue4) {
+    attributes.push({
+      attributeTypeName: product.optionType4.substring(0, 25),
+      attributeValueName: product.optionValue4.substring(0, 30)
+    });
+    providedAttributes.add(product.optionType4.toLowerCase());
+  }
+  
+  // Parse category metadata for required attributes
+  const attributeTypeMetas = meta?.attributeTypeMetas || [];
+  
+  // Find required attribute groups (groupNumber > 0 means they're in a bundle group)
+  // RULE 3: For bundle groups, we must provide EXACTLY ONE from the group
+  const bundleGroups = new Map<number, any[]>();
+  const mandatoryAttributes: any[] = [];
+  
+  for (const attrMeta of attributeTypeMetas) {
+    const required = attrMeta.required === 'MANDATORY';
+    const groupNumber = attrMeta.groupNumber || 0;
+    
+    if (required) {
+      if (groupNumber > 0) {
+        // Part of a bundle group - need to pick exactly one
+        if (!bundleGroups.has(groupNumber)) {
+          bundleGroups.set(groupNumber, []);
+        }
+        bundleGroups.get(groupNumber)!.push(attrMeta);
+      } else {
+        // Standalone mandatory attribute
+        mandatoryAttributes.push(attrMeta);
+      }
+    }
+  }
+  
+  console.log(`[Attributes] Found ${mandatoryAttributes.length} mandatory attrs, ${bundleGroups.size} bundle groups`);
+  
+  // Process bundle groups - pick the best one based on product info
+  for (const [groupNum, groupAttrs] of bundleGroups) {
+    // Check if any are already provided
+    const alreadyProvided = groupAttrs.some(attr => 
+      providedAttributes.has(attr.attributeTypeName?.toLowerCase())
+    );
+    
+    if (alreadyProvided) {
+      console.log(`[Attributes] Bundle group ${groupNum}: already provided`);
+      continue;
+    }
+    
+    // Pick the best attribute from the group based on product info
+    const selectedAttr = selectBestAttributeFromGroup(groupAttrs, product);
+    if (selectedAttr) {
+      attributes.push(selectedAttr);
+      console.log(`[Attributes] Bundle group ${groupNum}: selected ${selectedAttr.attributeTypeName}=${selectedAttr.attributeValueName}`);
+    }
+  }
+  
+  // Process standalone mandatory attributes
+  for (const attrMeta of mandatoryAttributes) {
+    const attrName = attrMeta.attributeTypeName;
+    
+    // Skip if already provided
+    if (providedAttributes.has(attrName?.toLowerCase())) {
+      continue;
+    }
+    
+    const value = inferAttributeValue(attrMeta, product);
+    if (value) {
+      attributes.push({
+        attributeTypeName: attrName.substring(0, 25),
+        attributeValueName: value.substring(0, 30)
+      });
+      console.log(`[Attributes] Mandatory: ${attrName}=${value}`);
+    }
+  }
+  
+  // Ensure we always have at least "수량" (quantity) attribute
+  const hasQuantity = attributes.some(a => 
+    a.attributeTypeName?.includes('수량') || a.attributeTypeName?.toLowerCase().includes('quantity')
+  );
+  
+  if (!hasQuantity && attributes.length === 0) {
+    attributes.push({
+      attributeTypeName: "수량",
+      attributeValueName: "1개"
+    });
+  }
+  
+  return attributes;
+}
+
+// Select the best attribute from a bundle group based on product information
+function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | null {
+  const productName = (product.productName || '').toLowerCase();
+  const description = (product.description || '').toLowerCase();
+  const combined = `${productName} ${description}`;
+  
+  // Priority order for common supplement/food categories
+  const priorityMap: { [key: string]: { patterns: string[]; extractor: (p: any, c: string) => string | null } } = {
+    '개당 캡슐/정': {
+      patterns: ['tablet', 'capsule', 'cap', '정', '캡슐', 'tabs', 'vcaps', 'softgel'],
+      extractor: (p, c) => extractCountFromText(c, ['tablet', 'capsule', '정', '캡슐', 'cap', 'tabs']) || '60정'
+    },
+    '개당 중량': {
+      patterns: ['g', 'gram', 'kg', 'mg', '그램', 'weight', '중량'],
+      extractor: (p, c) => extractWeightFromText(c) || '100g'
+    },
+    '개당 용량': {
+      patterns: ['ml', 'l', 'oz', 'liter', '리터', 'volume', '용량'],
+      extractor: (p, c) => extractVolumeFromText(c) || '100ml'
+    },
+    '수량': {
+      patterns: ['pack', 'bag', 'piece', 'ea', '개', '팩', 'set', 'box'],
+      extractor: (p, c) => extractQuantityFromText(c) || '1개'
+    }
+  };
+  
+  // First, try to match based on product content
+  for (const attr of groupAttrs) {
+    const typeName = attr.attributeTypeName || '';
+    const config = priorityMap[typeName];
+    
+    if (config) {
+      const hasMatch = config.patterns.some(pattern => combined.includes(pattern));
+      if (hasMatch) {
+        const value = config.extractor(product, combined);
+        return {
+          attributeTypeName: typeName.substring(0, 25),
+          attributeValueName: (value || '상세페이지 참조').substring(0, 30)
+        };
+      }
+    }
+  }
+  
+  // If no match, pick the first one with a default value
+  const firstAttr = groupAttrs[0];
+  if (firstAttr) {
+    const typeName = firstAttr.attributeTypeName || '';
+    const config = priorityMap[typeName];
+    const value = config ? config.extractor(product, combined) : '상세페이지 참조';
+    
+    return {
+      attributeTypeName: typeName.substring(0, 25),
+      attributeValueName: (value || '상세페이지 참조').substring(0, 30)
+    };
+  }
+  
+  return null;
+}
+
+// Extract count (tablets, capsules) from text
+function extractCountFromText(text: string, patterns: string[]): string | null {
+  for (const pattern of patterns) {
+    // Match patterns like "60 tablets", "100정", "30 capsules"
+    const regex = new RegExp(`(\\d+)\\s*${pattern}s?`, 'i');
+    const match = text.match(regex);
+    if (match) {
+      return `${match[1]}정`;
+    }
+  }
+  return null;
+}
+
+// Extract weight from text
+function extractWeightFromText(text: string): string | null {
+  // Match patterns like "500g", "1kg", "100mg"
+  const patterns = [
+    { regex: /(\d+(?:\.\d+)?)\s*kg/i, suffix: 'kg' },
+    { regex: /(\d+(?:\.\d+)?)\s*g(?!ram)/i, suffix: 'g' },
+    { regex: /(\d+(?:\.\d+)?)\s*mg/i, suffix: 'mg' },
+    { regex: /(\d+(?:\.\d+)?)\s*gram/i, suffix: 'g' }
+  ];
+  
+  for (const { regex, suffix } of patterns) {
+    const match = text.match(regex);
+    if (match) {
+      return `${match[1]}${suffix}`;
+    }
+  }
+  return null;
+}
+
+// Extract volume from text
+function extractVolumeFromText(text: string): string | null {
+  // Match patterns like "500ml", "1L", "16oz"
+  const patterns = [
+    { regex: /(\d+(?:\.\d+)?)\s*ml/i, suffix: 'ml' },
+    { regex: /(\d+(?:\.\d+)?)\s*l(?:iter)?/i, suffix: 'L' },
+    { regex: /(\d+(?:\.\d+)?)\s*oz/i, suffix: 'oz' }
+  ];
+  
+  for (const { regex, suffix } of patterns) {
+    const match = text.match(regex);
+    if (match) {
+      return `${match[1]}${suffix}`;
+    }
+  }
+  return null;
+}
+
+// Extract quantity from text
+function extractQuantityFromText(text: string): string | null {
+  // Match patterns like "100 bags", "50 packs", "6팩"
+  const patterns = [
+    { regex: /(\d+)\s*(?:bag|pack|piece|ea|개|팩|box|set)s?/i, suffix: '개' }
+  ];
+  
+  for (const { regex, suffix } of patterns) {
+    const match = text.match(regex);
+    if (match) {
+      return `${match[1]}${suffix}`;
+    }
+  }
+  return null;
+}
+
+// Infer value for standalone mandatory attributes
+function inferAttributeValue(attrMeta: any, product: any): string | null {
+  const typeName = (attrMeta.attributeTypeName || '').toLowerCase();
+  const combined = `${product.productName || ''} ${product.description || ''}`.toLowerCase();
+  
+  if (typeName.includes('수량') || typeName.includes('quantity')) {
+    return extractQuantityFromText(combined) || '1개';
+  }
+  
+  if (typeName.includes('용량') || typeName.includes('volume')) {
+    return extractVolumeFromText(combined) || '상세페이지 참조';
+  }
+  
+  if (typeName.includes('중량') || typeName.includes('weight')) {
+    return extractWeightFromText(combined) || '상세페이지 참조';
+  }
+  
+  if (typeName.includes('캡슐') || typeName.includes('정') || typeName.includes('tablet')) {
+    return extractCountFromText(combined, ['tablet', 'capsule', '정', '캡슐']) || '상세페이지 참조';
+  }
+  
+  // If there are predefined values, use the first one
+  const values = attrMeta.attributeValueMetas || [];
+  if (values.length > 0) {
+    return values[0].attributeValueName || '상세페이지 참조';
+  }
+  
+  return '상세페이지 참조';
+}
+
 // Transform internal product format to exact Coupang API format
 // Reference: https://developers.coupangcorp.com/hc/en-us/articles/360033877853-Product-Creation
-function transformProductToCoupangFormat(product: any, vendorId: string, wingSettings: any, notices?: any[]): any {
+function transformProductToCoupangFormat(product: any, vendorId: string, wingSettings: any, notices?: any[], categoryMeta?: any): any {
   // Extract category code - if it's a path like "123>456>789", take the last one
   let categoryCode = 0;
   if (product.category) {
@@ -260,39 +534,46 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     }
   };
 
-  // Build attributes array from product options
-  const attributes: any[] = [];
-  if (product.optionType1 && product.optionValue1) {
-    attributes.push({
-      attributeTypeName: product.optionType1.substring(0, 25),
-      attributeValueName: product.optionValue1.substring(0, 30)
-    });
-  }
-  if (product.optionType2 && product.optionValue2) {
-    attributes.push({
-      attributeTypeName: product.optionType2.substring(0, 25),
-      attributeValueName: product.optionValue2.substring(0, 30)
-    });
-  }
-  if (product.optionType3 && product.optionValue3) {
-    attributes.push({
-      attributeTypeName: product.optionType3.substring(0, 25),
-      attributeValueName: product.optionValue3.substring(0, 30)
-    });
-  }
-  if (product.optionType4 && product.optionValue4) {
-    attributes.push({
-      attributeTypeName: product.optionType4.substring(0, 25),
-      attributeValueName: product.optionValue4.substring(0, 30)
-    });
-  }
-
-  // If no attributes, create a default one (required by Coupang)
-  if (attributes.length === 0) {
-    attributes.push({
-      attributeTypeName: "수량",
-      attributeValueName: "1개"
-    });
+  // RULE 2 & 3: Build attributes from category metadata (if available) or product options
+  let attributes: any[];
+  if (categoryMeta) {
+    attributes = buildAttributesFromCategoryMeta(product, categoryMeta);
+    console.log(`[Transform] Built ${attributes.length} attributes from category metadata`);
+  } else {
+    // Fallback to old behavior if no category metadata
+    attributes = [];
+    if (product.optionType1 && product.optionValue1) {
+      attributes.push({
+        attributeTypeName: product.optionType1.substring(0, 25),
+        attributeValueName: product.optionValue1.substring(0, 30)
+      });
+    }
+    if (product.optionType2 && product.optionValue2) {
+      attributes.push({
+        attributeTypeName: product.optionType2.substring(0, 25),
+        attributeValueName: product.optionValue2.substring(0, 30)
+      });
+    }
+    if (product.optionType3 && product.optionValue3) {
+      attributes.push({
+        attributeTypeName: product.optionType3.substring(0, 25),
+        attributeValueName: product.optionValue3.substring(0, 30)
+      });
+    }
+    if (product.optionType4 && product.optionValue4) {
+      attributes.push({
+        attributeTypeName: product.optionType4.substring(0, 25),
+        attributeValueName: product.optionValue4.substring(0, 30)
+      });
+    }
+    
+    // Default attribute if none provided
+    if (attributes.length === 0) {
+      attributes.push({
+        attributeTypeName: "수량",
+        attributeValueName: "1개"
+      });
+    }
   }
 
   // Build images array
@@ -556,7 +837,8 @@ async function uploadProduct(
   secretKey: string,
   vendorId: string,
   wingSettings: any,
-  notices?: any[]
+  notices?: any[],
+  categoryMeta?: any
 ): Promise<{ success: boolean; productId?: string; error?: string; details?: any; payload?: any }> {
   const method = "POST";
   const path = `/v2/providers/seller_api/apis/api/v1/marketplace/seller-products`;
@@ -573,8 +855,8 @@ async function uploadProduct(
       };
     }
 
-    // Transform product to Coupang format
-    const payload = transformProductToCoupangFormat(product, vendorId, wingSettings, notices);
+    // Transform product to Coupang format with category metadata for proper attributes
+    const payload = transformProductToCoupangFormat(product, vendorId, wingSettings, notices, categoryMeta);
     
     console.log('[Upload] Uploading product:', product.productName);
     console.log('[Upload] Payload:', JSON.stringify(payload, null, 2).slice(0, 2000));
@@ -665,20 +947,22 @@ async function batchUpload(
     
     console.log(`[Batch] Processing product ${i + 1}/${products.length}: ${product.productName}`);
 
-    // Fetch category metadata and generate notices
+    // Fetch category metadata for notices AND required attributes
     let notices: any[] = [];
+    let categoryMeta: any = null;
     try {
       const categoryCode = extractDisplayCategoryCode(product.category);
       if (categoryCode > 0) {
-        const meta = await fetchCategoryRelatedMeta(categoryCode, accessKey, secretKey, categoryMetaCache);
-        notices = buildNoticesFromCategoryMeta(product, wingSettings, meta);
+        categoryMeta = await fetchCategoryRelatedMeta(categoryCode, accessKey, secretKey, categoryMetaCache);
+        notices = buildNoticesFromCategoryMeta(product, wingSettings, categoryMeta);
         console.log(`[Batch] Generated ${notices.length} notice(s) for product ${i + 1}`);
       }
     } catch (err) {
       console.error(`[Batch] Failed to fetch category meta for product ${i + 1}:`, err);
     }
     
-    const result = await uploadProduct(product, accessKey, secretKey, vendorId, wingSettings, notices);
+    // Pass category metadata for proper attribute handling (RULE 2 & 3)
+    const result = await uploadProduct(product, accessKey, secretKey, vendorId, wingSettings, notices, categoryMeta);
     
     results.push({
       productIndex: i,
