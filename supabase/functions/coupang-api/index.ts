@@ -358,6 +358,16 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     });
   }
 
+  // RULE 1: Shipping location decides EVERYTHING
+  // If the outbound shipping place is overseas (non-KR), ALL products MUST be:
+  // - overseasPurchased: "OVERSEAS_PURCHASED"
+  // - deliveryMethod: "AGENT_BUY" (set later in payload)
+  // - pccNeeded: true
+  const isShippingFromOverseas = wingSettings.countryCode && wingSettings.countryCode !== 'KR';
+  const isOverseasProduct = product.overseasPurchase || isShippingFromOverseas;
+  
+  console.log(`[Overseas Check] Country: ${wingSettings.countryCode}, Product overseas flag: ${product.overseasPurchase}, Final overseas: ${isOverseasProduct}`);
+  
   // Build the single item
   const item: any = {
     itemName: (product.productName || "Product").substring(0, 150),
@@ -371,8 +381,10 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     adultOnly: product.adultOnly ? "ADULT_ONLY" : "EVERYONE",
     taxType: product.taxable === false ? "FREE" : "TAX",
     parallelImported: product.parallelImport ? "PARALLEL_IMPORTED" : "NOT_PARALLEL_IMPORTED",
-    overseasPurchased: product.overseasPurchase ? "OVERSEAS_PURCHASED" : "NOT_OVERSEAS_PURCHASED",
-    pccNeeded: product.overseasPurchase ? true : false,
+    // Force overseas purchased if shipping from overseas
+    overseasPurchased: isOverseasProduct ? "OVERSEAS_PURCHASED" : "NOT_OVERSEAS_PURCHASED",
+    // PCC (Personal Customs Code) required for all overseas products
+    pccNeeded: isOverseasProduct,
     externalVendorSku: product.vendorProductCode || "",
     barcode: product.barcode || "",
     emptyBarcode: !product.barcode,
@@ -398,12 +410,10 @@ function transformProductToCoupangFormat(product: any, vendorId: string, wingSet
     item.notices = notices;
   }
 
-  // Detect if this is overseas shipping:
-  // - Product explicitly marked as overseas purchase, OR
-  // - Wing settings country code is not KR
-  // For overseas products, deliveryMethod must be "AGENT" (구매대행)
-  const isOverseas = product.overseasPurchase || (wingSettings.countryCode && wingSettings.countryCode !== 'KR');
-  const deliveryMethod = isOverseas ? "AGENT_BUY" : "SEQUENCIAL";
+  // Delivery method based on overseas status (already calculated above)
+  // AGENT_BUY = 구매대행 (Purchase Agency) - required for ALL overseas products
+  const deliveryMethod = isOverseasProduct ? "AGENT_BUY" : "SEQUENCIAL";
+  console.log(`[Delivery] Method: ${deliveryMethod}, Overseas: ${isOverseasProduct}`);
 
   // Clean and truncate brand name (max 100 chars)
   let cleanBrand = (product.brand || "").trim();
