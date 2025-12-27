@@ -1386,11 +1386,43 @@ serve(async (req) => {
         );
       }
 
+      case 'fetch-category-meta': {
+        // Fetch category metadata for attribute requirements
+        if (!reqCategoryCode) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Category code is required.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        try {
+          const cache = new Map<number, any>();
+          const meta = await fetchCategoryRelatedMeta(parseInt(reqCategoryCode), accessKey, secretKey, cache);
+          
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              meta,
+              message: 'Category metadata fetched successfully' 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (err) {
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: err instanceof Error ? err.message : 'Failed to fetch category metadata' 
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
       default:
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: `Unknown action: ${action}. Supported actions: validate, upload, validate-products, test-signature, fetch-shipping-centers, recommend-category, validate-category` 
+            error: `Unknown action: ${action}. Supported actions: validate, upload, validate-products, test-signature, fetch-shipping-centers, recommend-category, validate-category, fetch-category-meta` 
           }),
           { 
             status: 400, 

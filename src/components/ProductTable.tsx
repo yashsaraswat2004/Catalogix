@@ -28,7 +28,8 @@ import {
   X,
   FileSpreadsheet,
   Sparkles,
-  FolderTree
+  FolderTree,
+  ListChecks
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -38,6 +39,7 @@ import {
 } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { useCoupangApi } from '@/hooks/useCoupangApi';
+import { CategoryRequirements } from './CategoryRequirements';
 import {
   Tooltip,
   TooltipContent,
@@ -523,6 +525,20 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                               </div>
                             </dl>
                           </div>
+
+                          {/* Category Requirements Preview */}
+                          {product.data.category && (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                                <ListChecks className="w-4 h-4" />
+                                Category Requirements
+                              </h4>
+                              <CategoryRequirements 
+                                product={product} 
+                                credentials={credentials} 
+                              />
+                            </div>
+                          )}
 
                           {/* Validation Errors with Cell References */}
                           {product.validationErrors.length > 0 && (
