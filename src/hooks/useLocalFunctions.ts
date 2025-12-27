@@ -1,24 +1,17 @@
-// Helper for local edge function development
-// When running `supabase functions serve`, use this to call local functions
+// Express Backend Integration
+// Connects frontend to your self-hosted Express backend
 
-const LOCAL_FUNCTIONS_URL = 'http://localhost:8000';
-
-// Get the current backend mode from localStorage
-function getBackendMode(): 'cloud' | 'local' {
-  if (typeof window === 'undefined') return 'cloud';
-  const saved = localStorage.getItem('coupang_backend_mode');
-  return saved === 'local' ? 'local' : 'cloud';
-}
+// Backend URL - Update this for production deployment
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
 export async function invokeFunction(functionName: string, body: any) {
-  // Only route Coupang API calls through the local functions server (for IP whitelisting).
-  // Other helper functions (e.g. translation) should use the cloud backend.
-  const backendMode = getBackendMode();
-  const useLocal = backendMode === 'local' && functionName === 'coupang-api';
+  // Map edge function names to Express endpoints
+  const endpoint = functionName === 'coupang-api' ? 'coupang' : 'translate';
   
-  if (useLocal) {
-    console.log(`[Local] Calling local function: ${functionName}`);
-    const response = await fetch(`${LOCAL_FUNCTIONS_URL}/${functionName}`, {
+  console.log(`[Backend] Calling: ${BACKEND_URL}/${endpoint}`);
+  
+  try {
+    const response = await fetch(`${BACKEND_URL}/${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -28,17 +21,24 @@ export async function invokeFunction(functionName: string, body: any) {
     
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Function error: ${errorText}`);
+      console.error(`[Backend] Error response:`, errorText);
+      return { 
+        data: null, 
+        error: { message: `Backend error: ${errorText}` } 
+      };
     }
     
-    return { data: await response.json(), error: null };
+    const data = await response.json();
+    return { data, error: null };
+  } catch (error) {
+    console.error(`[Backend] Network error:`, error);
+    return { 
+      data: null, 
+      error: { message: error instanceof Error ? error.message : 'Network error - is backend running?' } 
+    };
   }
-  
-  // Use Supabase client for cloud functions
-  const { supabase } = await import('@/integrations/supabase/client');
-  return supabase.functions.invoke(functionName, { body });
 }
 
 export function isUsingLocalFunctions() {
-  return getBackendMode() === 'local';
+  return true; // Always using your own Express backend
 }
