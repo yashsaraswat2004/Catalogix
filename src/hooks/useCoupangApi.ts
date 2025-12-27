@@ -373,6 +373,37 @@ export function useCoupangApi() {
     }
   }, []);
 
+  // Fetch category metadata for attribute requirements
+  const fetchCategoryMeta = useCallback(async (
+    credentials: CoupangApiCredentials,
+    categoryCode: string
+  ): Promise<{ success: boolean; meta?: any; message: string }> => {
+    try {
+      const { data, error: fnError } = await invokeFunction('coupang-api', {
+        action: 'fetch-category-meta',
+        credentials: {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
+        },
+        categoryCode,
+      });
+
+      if (fnError) {
+        return { success: false, message: fnError.message || 'Failed to fetch category metadata' };
+      }
+
+      return { 
+        success: data?.success || false, 
+        meta: data?.meta,
+        message: data?.message || 'Unknown response' 
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error';
+      return { success: false, message };
+    }
+  }, []);
+
   return {
     isValidating,
     isUploading,
@@ -386,6 +417,7 @@ export function useCoupangApi() {
     translateProducts,
     recommendCategory,
     validateCategory,
+    fetchCategoryMeta,
     clearError: () => setError(null),
   };
 }
