@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -8,6 +9,7 @@ import compression from 'compression';
 import { connectDatabase } from './config/database';
 import coupangRoutes from './routes/coupang';
 import translateRoutes from './routes/translate';
+import authRoutes from './routes/auth';
 
 dotenv.config();
 
@@ -17,12 +19,26 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 function validateEnvironment(): void {
   const warnings: string[] = [];
+  const errors: string[] = [];
   
   if (!process.env.GEMINI_API_KEY) {
     warnings.push('GEMINI_API_KEY not set - translation will not work');
   }
   if (!process.env.MONGODB_URI) {
     warnings.push('MONGODB_URI not set - using default localhost');
+  }
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-super-secret-jwt-key-change-in-production') {
+    if (NODE_ENV === 'production') {
+      errors.push('JWT_SECRET must be set in production!');
+    } else {
+      warnings.push('JWT_SECRET not set - using insecure default (OK for development)');
+    }
+  }
+  
+  if (errors.length > 0) {
+    console.error('❌ Environment Errors:');
+    errors.forEach(e => console.error(`   - ${e}`));
+    process.exit(1);
   }
   
   if (warnings.length > 0) {
@@ -38,13 +54,50 @@ app.use(helmet({
 }));
 
 // CORS - Configure for your frontend
+// In development, allow all localhost ports. In production, use CORS_ORIGIN env var.
+const getAllowedOrigins = (): string[] | boolean => {
+  if (NODE_ENV === 'development') {
+    // Allow any localhost port in development
+    return true; // This allows all origins in dev - CORS will check dynamically
+  }
+  const origins = process.env.CORS_ORIGIN;
+  if (origins) {
+    return origins.split(',').map(o => o.trim());
+  }
+  return ['http://localhost:5173', 'http://localhost:3000'];
+};
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'],
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    
+    if (NODE_ENV === 'development') {
+      // In development, allow all localhost origins
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        callback(null, true);
+        return;
+      }
+    }
+    
+    const allowedOrigins = getAllowedOrigins();
+    if (allowedOrigins === true || (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(cors(corsOptions));
+
+// Cookie parser for JWT in cookies
+app.use(cookieParser());
 
 // Rate Limiting - Prevent abuse
 const generalLimiter = rateLimit({
@@ -88,6 +141,7 @@ if (NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
+app.use('/api/auth', authRoutes);
 app.use('/api/coupang', coupangRoutes);
 app.use('/api/translate', translateRoutes);
 
@@ -113,6 +167,7 @@ app.get('/', (req: Request, res: Response) => {
     status: 'running',
     endpoints: {
       health: '/health',
+      auth: '/api/auth',
       coupang: '/api/coupang',
       translate: '/api/translate'
     }
@@ -175,7 +230,8 @@ async function startServer() {
     server = app.listen(PORT, () => {
       console.log(`\n🚀 Server running on http://localhost:${PORT}`);
       console.log(`📦 Environment: ${NODE_ENV}`);
-      console.log(`📦 Coupang API: http://localhost:${PORT}/api/coupang`);
+      console.log(`� Auth API: http://localhost:${PORT}/api/auth`);
+      console.log(`�📦 Coupang API: http://localhost:${PORT}/api/coupang`);
       console.log(`🌐 Translate API: http://localhost:${PORT}/api/translate`);
       console.log(`💚 Health Check: http://localhost:${PORT}/health\n`);
     });

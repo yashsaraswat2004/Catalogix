@@ -105,28 +105,28 @@ const Landing = () => {
   const roadmap = [
     {
       status: 'completed',
-      quarter: 'Q4 2024',
+      quarter: 'Q4 2025',
       title: 'Bulk Upload & AI Translation',
       description: 'Core platform with CSV/Excel upload and Gemini AI-powered English to Korean translation.',
       icon: Upload,
     },
     {
       status: 'current',
-      quarter: 'Q1 2025',
+      quarter: 'Q1 2026',
       title: 'Analytics Dashboard',
       description: 'Comprehensive insights into your upload history, success rates, and product performance.',
       icon: BarChart3,
     },
     {
       status: 'upcoming',
-      quarter: 'Q2 2025',
+      quarter: 'Q2 2026',
       title: 'Multi-Platform Support',
       description: 'Expand beyond Coupang to support Naver, 11st, and Gmarket marketplaces.',
       icon: Layers,
     },
     {
       status: 'upcoming',
-      quarter: 'Q3 2025',
+      quarter: 'Q3 2026',
       title: 'AI Product Optimization',
       description: 'Smart suggestions to improve product titles, descriptions, and pricing for better sales.',
       icon: Bot,
@@ -634,7 +634,7 @@ const Landing = () => {
                 <span className="text-2xl font-bold">Catalogix</span>
               </div>
               <p className="text-muted-foreground mb-6 max-w-md">
-                The fastest way to bulk upload products to Coupang. Built by sellers, for sellers.
+                The fastest way to bulk upload products to Coupang. Built for sellers.
               </p>
               <div className="flex gap-4">
                 <a href="https://github.com/yashsaraswat2004/Catalogix" target="_blank" rel="noopener noreferrer" 

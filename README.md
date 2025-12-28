@@ -417,6 +417,125 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
+## 🚀 Production Deployment
+
+### Frontend Deployment (Vercel/Netlify)
+
+#### 1. Build for Production
+
+```bash
+npm run build
+```
+
+This creates an optimized `dist/` folder with:
+- Code splitting for faster loading
+- Minified JavaScript (console logs removed)
+- Optimized assets
+
+#### 2. Environment Variables
+
+Create a `.env.production` file:
+
+```env
+VITE_API_URL=https://your-backend-url.com
+VITE_APP_URL=https://catalogix.app
+```
+
+#### 3. Deploy to Vercel
+
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+Or connect your GitHub repo to Vercel for automatic deployments.
+
+#### 4. Deploy to Netlify
+
+```bash
+npm i -g netlify-cli
+netlify deploy --prod --dir=dist
+```
+
+### Backend Deployment (Railway/Render/VPS)
+
+#### 1. Prepare Backend
+
+```bash
+cd backend
+npm run build  # If using TypeScript compilation
+```
+
+#### 2. Environment Variables (Production)
+
+```env
+PORT=3001
+NODE_ENV=production
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/catalogix
+GEMINI_API_KEY=your_production_gemini_key
+CORS_ORIGIN=https://catalogix.app
+```
+
+#### 3. Deploy to Railway
+
+```bash
+railway login
+railway init
+railway up
+```
+
+#### 4. Deploy to Render
+
+1. Connect your GitHub repo
+2. Set build command: `cd backend && npm install`
+3. Set start command: `cd backend && npm start`
+4. Add environment variables
+
+### Docker Deployment
+
+#### Frontend Dockerfile
+
+```dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+#### Backend Dockerfile
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY backend/package*.json ./
+RUN npm ci --only=production
+COPY backend/ .
+EXPOSE 3001
+CMD ["node", "src/index.js"]
+```
+
+### Production Checklist
+
+- [ ] Environment variables configured for production
+- [ ] CORS origins set to production domain
+- [ ] MongoDB Atlas or production database configured
+- [ ] SSL/HTTPS enabled
+- [ ] Rate limiting configured appropriately
+- [ ] Error tracking service configured (optional: Sentry)
+- [ ] Analytics configured (optional: Google Analytics)
+- [ ] Backup strategy for MongoDB
+- [ ] Health check endpoint monitored
+
+---
+
 ## 📖 API Documentation
 
 ### Base URL

@@ -1,3 +1,18 @@
+# Catalogix - Robots.txt
+# https://catalogix.app
+
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://catalogix.app/sitemap.xml
+
+# Crawl-delay for politeness
+Crawl-delay: 1
+
+# Specific bot rules
 User-agent: Googlebot
 Allow: /
 
@@ -8,7 +23,4 @@ User-agent: Twitterbot
 Allow: /
 
 User-agent: facebookexternalhit
-Allow: /
-
-User-agent: *
 Allow: /

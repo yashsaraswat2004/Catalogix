@@ -24,8 +24,16 @@ Express.js backend for the Coupang Product Uploader application.
    Edit `.env` with your settings:
    ```env
    PORT=3001
+   NODE_ENV=development
    MONGODB_URI=mongodb://localhost:27017/coupang_uploader
    GEMINI_API_KEY=your_gemini_api_key_here
+   
+   # Authentication (REQUIRED for production!)
+   JWT_SECRET=your-super-secure-random-string-at-least-32-chars
+   JWT_EXPIRES_IN=7d
+   
+   # CORS (set to your frontend URL in production)
+   CORS_ORIGIN=http://localhost:5173
    ```
 
 3. **Start MongoDB** (if running locally)
@@ -55,6 +63,13 @@ Express.js backend for the Coupang Product Uploader application.
 
 ### Health Check
 - `GET /health` - Server status
+
+### Authentication
+- `POST /api/auth/signup` - Create new account
+- `POST /api/auth/login` - Login and get JWT cookie
+- `POST /api/auth/logout` - Clear JWT cookie
+- `GET /api/auth/me` - Get current user (requires auth)
+- `POST /api/auth/refresh` - Refresh JWT token
 
 ### Coupang API
 - `POST /api/coupang` - All Coupang operations

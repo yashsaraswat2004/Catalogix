@@ -1,14 +1,18 @@
 // Express Backend Integration
 // Connects frontend to your self-hosted Express backend
 
-// Backend URL - Update this for production deployment
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
+import config from '@/lib/config';
+
+// Backend URL - Uses environment variable or falls back to localhost
+const BACKEND_URL = `${config.apiUrl}/api`;
 
 export async function invokeFunction(functionName: string, body: any) {
   // Map edge function names to Express endpoints
   const endpoint = functionName === 'coupang-api' ? 'coupang' : 'translate';
   
-  console.log(`[Backend] Calling: ${BACKEND_URL}/${endpoint}`);
+  if (config.isDevelopment) {
+    console.log(`[Backend] Calling: ${BACKEND_URL}/${endpoint}`);
+  }
   
   try {
     const response = await fetch(`${BACKEND_URL}/${endpoint}`, {
@@ -21,7 +25,9 @@ export async function invokeFunction(functionName: string, body: any) {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[Backend] Error response:`, errorText);
+      if (config.isDevelopment) {
+        console.error(`[Backend] Error response:`, errorText);
+      }
       return { 
         data: null, 
         error: { message: `Backend error: ${errorText}` } 
@@ -31,7 +37,9 @@ export async function invokeFunction(functionName: string, body: any) {
     const data = await response.json();
     return { data, error: null };
   } catch (error) {
-    console.error(`[Backend] Network error:`, error);
+    if (config.isDevelopment) {
+      console.error(`[Backend] Network error:`, error);
+    }
     return { 
       data: null, 
       error: { message: error instanceof Error ? error.message : 'Network error - is backend running?' } 

@@ -14,4 +14,33 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Production optimizations
+    target: "es2020",
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: mode === "production",
+        drop_debugger: mode === "production",
+      },
+    },
+    rollupOptions: {
+      output: {
+        // Code splitting for better caching
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-tabs"],
+        },
+      },
+    },
+    // Generate source maps for debugging
+    sourcemap: mode !== "production",
+    // Chunk size warnings
+    chunkSizeWarningLimit: 1000,
+  },
+  // Preview server config (for testing production builds)
+  preview: {
+    port: 4173,
+    host: true,
+  },
 }));

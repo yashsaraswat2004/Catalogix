@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FileUpload } from '@/components/FileUpload';
 import { ProductTable } from '@/components/ProductTable';
 import { ApiSettings } from '@/components/ApiSettings';
@@ -10,7 +10,7 @@ import { ParsedProduct, CoupangApiCredentials, WingSettings, REQUIRED_WING_SETTI
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCoupangApi, UploadResult } from '@/hooks/useCoupangApi';
-import { Upload, Download, RefreshCw, Package, Shield, AlertTriangle, CheckCircle2, Play, Settings, Home, Info, Menu, X } from 'lucide-react';
+import { Upload, Download, RefreshCw, Package, Shield, AlertTriangle, CheckCircle2, Play, Settings, Home, Info, Menu, X, LogOut, User } from 'lucide-react';
 import { exportToXlsx } from '@/lib/xlsxParser';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -24,6 +24,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const DEFAULT_WING_SETTINGS: WingSettings = {
   returnCenterCode: '',
@@ -55,6 +63,13 @@ const Dashboard = () => {
   
   const { toast } = useToast();
   const { validateCredentials, dryRun, uploadProducts, translateProducts, isValidating, isUploading } = useCoupangApi();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   // Load credentials and settings from localStorage
   useEffect(() => {
@@ -405,6 +420,32 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <ApiSettings credentials={credentials} onSave={handleCredentialsSave} />
+            
+            {/* User Menu - Desktop */}
+            <div className="hidden md:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold">
+                      {user?.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="max-w-[100px] truncate hidden lg:inline">{user?.name}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <div className="px-2 py-2">
+                    <p className="text-sm font-medium">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
             <button
               className="md:hidden p-2 rounded-lg hover:bg-muted/50 transition-colors"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -434,6 +475,31 @@ const Dashboard = () => {
                 <Info className="h-4 w-4" />
                 About
               </Link>
+              
+              {/* User info on mobile */}
+              <div className="border-t border-border/50 mt-2 pt-2">
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{user?.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="w-full mt-2 justify-start text-destructive hover:text-destructive"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </div>
           </div>
         )}
