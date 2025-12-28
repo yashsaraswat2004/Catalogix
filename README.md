@@ -1,54 +1,78 @@
 <p align="center">
+  <img src="public/catalogix_logo1.png" alt="Catalogix Logo" width="120" />
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/React-18.3-61DAFB?style=for-the-badge&logo=react&logoColor=white" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/TypeScript-5.5-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Express.js-4.x-000000?style=for-the-badge&logo=express&logoColor=white" alt="Express" />
   <img src="https://img.shields.io/badge/MongoDB-6.0-47A248?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB" />
   <img src="https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind" />
 </p>
 
-# 🚀 Coupang Product Uploader
+<h1 align="center">Catalogix</h1>
 
-> **Enterprise-grade bulk product management solution for Coupang Wing marketplace**
+<p align="center">
+  <strong>Enterprise Bulk Product Management Platform</strong><br/>
+  <em>Effortless Bulk Product Uploads Across Global Marketplaces</em>
+</p>
 
-A powerful, intelligent product upload system that transforms the tedious manual process of listing products on Coupang into a seamless, automated workflow. Upload hundreds of products in minutes, not hours.
+<p align="center">
+  Ongoing Product Development by <strong>Frostrek</strong>
+</p>
 
 ---
 
 ## 📋 Table of Contents
 
-- [Overview](#-overview)
-- [The Problem We Solve](#-the-problem-we-solve)
-- [Key Features](#-key-features)
-- [Technology Stack](#-technology-stack)
-- [Architecture](#-architecture)
+- [Introduction](#-introduction)
+- [Business Context](#-business-context)
+- [Problems We Solve](#-problems-we-solve)
+- [Key Platform Capabilities](#-key-platform-capabilities)
+- [Technical Highlights](#-technical-highlights)
+- [Technology Architecture](#-technology-architecture)
+- [AI Strategy](#-ai-strategy)
+- [Development Status](#-development-status)
+- [Usage Workflow](#-usage-workflow)
+- [Security & Compliance](#-security--compliance)
+- [Business Value](#-business-value)
 - [Getting Started](#-getting-started)
 - [API Documentation](#-api-documentation)
-- [Usage Guide](#-usage-guide)
-- [Security](#-security)
 - [Roadmap](#-roadmap)
-- [Support](#-support)
 
 ---
 
-## 🎯 Overview
+## 🎯 Introduction
 
-**Coupang Product Uploader** is a comprehensive solution designed for e-commerce sellers, dropshippers, and businesses looking to scale their presence on South Korea's largest e-commerce platform, Coupang. Our platform bridges the gap between your product data and Coupang's complex API requirements, handling everything from data transformation to category optimization.
+**Catalogix** is an enterprise-grade bulk product management platform designed to simplify and automate product listing across global e-commerce marketplaces.
 
-### Why Coupang?
+The platform addresses one of the most critical challenges in cross-border commerce: converting supplier product data into marketplace-ready listings while handling language localization, category compliance, pricing logic, and marketplace-specific API requirements.
 
-- 🇰🇷 **#1 E-commerce Platform in South Korea** with 18M+ active customers
-- 📈 **$24B+ GMV** in 2023
-- 🌏 **Gateway to Korean Market** for international sellers
-- 🚀 **Rocket Delivery** program for enhanced visibility
+Catalogix is currently under active development. The first phase, focused on bulk product uploads, has been successfully implemented and is operational. Subsequent phases will introduce advanced pricing automation, analytics, and multi-marketplace expansion.
 
 ---
 
-## 💡 The Problem We Solve
+## 💼 Business Context
 
-### Traditional Product Upload Challenges
+Global e-commerce marketplaces operate with significantly different technical, regulatory, and language requirements. While many high-quality products are readily available for English-language marketplaces, those same products often remain unavailable in non-English regions due to:
 
-| Challenge | Manual Process | With Our Solution |
-|-----------|---------------|-------------------|
+- 🌐 Language and localization barriers
+- 📋 Marketplace-specific compliance requirements
+- ⚙️ Operational complexity for sellers
+- 💰 High costs of regional onboarding
+
+Catalogix bridges this gap by enabling sellers, agencies, and enterprises to scale their product catalogs across regions without rebuilding their workflows for each marketplace.
+
+The initial implementation uses **Coupang** (South Korea's largest e-commerce platform) as a reference marketplace due to its strict API requirements and non-English content standards. Solving for this complexity establishes a strong technical foundation for expansion into other marketplaces such as Ozon and additional regional platforms.
+
+---
+
+## 🔧 Problems We Solve
+
+### Traditional Marketplace Upload Challenges
+
+| Challenge | Manual Process | With Catalogix |
+|-----------|---------------|----------------|
 | **Time per Product** | 15-30 minutes | < 1 second |
 | **Bulk Upload (100 products)** | 25-50 hours | 5-10 minutes |
 | **Category Mapping** | Manual research | AI-powered automation |
@@ -59,97 +83,129 @@ A powerful, intelligent product upload system that transforms the tedious manual
 
 ### Pain Points We Eliminate
 
-1. **❌ Complex API Integration**
-   - Coupang's API requires HMAC-SHA256 signatures, specific date formats, and complex payload structures
-   - *Our solution handles all authentication and formatting automatically*
-
-2. **❌ Category Confusion**
-   - Thousands of categories with specific attribute requirements
-   - *AI recommends optimal categories and auto-fills required attributes*
-
-3. **❌ Language Barrier**
-   - All product data must be in Korean
-   - *One-click AI translation maintains SEO quality*
-
-4. **❌ Data Format Mismatch**
-   - Different suppliers use different formats (CSV, Excel, various column names)
-   - *Intelligent parser adapts to any format with smart column mapping*
-
-5. **❌ Validation Nightmares**
-   - Failed uploads with cryptic error messages
-   - *Pre-upload validation catches issues before they cost you time*
+1. **❌ Complex API Integration** → Automatic HMAC-SHA256 authentication and payload formatting
+2. **❌ Category Confusion** → AI recommends optimal categories and auto-fills required attributes
+3. **❌ Language Barrier** → One-click AI translation maintains SEO quality
+4. **❌ Data Format Mismatch** → Intelligent parser adapts to any format with smart column mapping
+5. **❌ Validation Nightmares** → Pre-upload validation catches issues before they cost you time
 
 ---
 
-## ✨ Key Features
+## ✨ Key Platform Capabilities
 
-### 🔄 Smart File Processing
-- **Multi-format Support**: CSV, XLSX, XLS files
-- **Intelligent Column Mapping**: Auto-detects product name, price, description, images
-- **Drag & Drop Interface**: Simple, intuitive file upload
-- **Live Preview**: See your data before uploading
+### 4.1 Bulk File Processing (Phase 1 – Completed)
 
-### 🤖 AI-Powered Automation
-- **Category Recommendation**: AI analyzes product details to suggest optimal Coupang categories
-- **Korean Translation**: Professional-quality translations using advanced AI models
-- **Attribute Extraction**: Automatically extracts weight, dimensions, quantity from descriptions
-- **Notice Generation**: Auto-generates required product notices based on category
+- ✅ Support for CSV, XLS, and XLSX formats
+- ✅ Automatic detection and mapping of product fields
+- ✅ Drag-and-drop upload interface
+- ✅ Live preview of transformed product data
+- ✅ Inline editing before upload
 
-### ✅ Comprehensive Validation
-- **Pre-flight Checks**: Validates all required fields before upload
-- **Image Validation**: Ensures image URLs are accessible and properly formatted
-- **Category Verification**: Confirms category codes are active and valid
-- **Real-time Feedback**: Instant error highlighting with actionable fixes
+### 4.2 AI-Assisted Automation
 
-### 📊 Progress & Analytics
-- **Live Upload Progress**: Real-time status for each product
-- **Success/Failure Tracking**: Clear visibility into upload results
-- **Error Logging**: Detailed error messages for troubleshooting
-- **Upload History**: Track all past uploads (with MongoDB)
+- 🤖 Intelligent category recommendations based on product data
+- 🌐 High-quality AI-powered translation for non-English marketplaces
+- 📊 Automatic extraction of attributes (dimensions, quantity, weight)
+- 📝 Auto-generation of required marketplace notices
 
-### ⚙️ Flexible Configuration
-- **Wing Settings Management**: Save and reuse shipping, return, and seller configurations
-- **Multiple Shipping Centers**: Support for various fulfillment locations
-- **Custom Pricing Rules**: Set margins, discounts, and pricing strategies
-- **Credential Management**: Secure API key storage and validation
+### 4.3 Validation and Error Prevention
+
+- ✅ Pre-upload validation of required fields
+- 🖼️ Image URL accessibility and formatting checks
+- 🏷️ Category and attribute verification
+- 💡 Clear, actionable error messages before upload
+
+### 4.4 Upload Monitoring
+
+- 📈 Real-time upload progress tracking
+- ✅ Success and failure reporting per product
+- 📋 Detailed error logs on server side
+- 💾 Upload history persistence capability (database infrastructure ready)
+
+### 4.5 Configuration Management
+
+- ⚙️ Reusable marketplace configuration settings
+- 🚚 Support for multiple shipping and return centers
+- 🔐 Secure handling of API credentials
+- 💲 Pricing configuration hooks for upcoming automation features
 
 ---
 
-## 🛠 Technology Stack
+## 🔒 Technical Highlights
+
+### 6.1 Production-Ready Security
+
+- **Rate Limiting**: 60 req/min for API endpoints, 100 req/15 min general
+- **Security Headers**: Helmet.js for XSS, clickjacking, and MIME-type protection
+- **Input Validation**: Comprehensive sanitization across all API endpoints
+- **Error Isolation**: Production errors never expose sensitive stack traces
+
+### 6.2 Health Monitoring and Observability
+
+- 📊 Application uptime tracking
+- 💾 Memory usage monitoring
+- 🔍 Runtime environment validation
+- 🏥 Enhanced `/health` endpoint for system status
+
+### 6.3 Intelligent Attribute Mapping
+
+- 🔄 Automatic conversion of English attributes to Korean equivalents
+- 📐 Pattern-based extraction: "60 Tablets" → "60정" (Korean format)
+- 🎯 Automatic selection of correct attributes from marketplace-defined groups
+
+### 6.4 Smart Category Metadata Management
+
+- 💨 Caching of category requirements to minimize API calls
+- 📝 Automatic generation of mandatory product notices based on category rules
+
+### 6.5 Graceful Error Recovery
+
+- 🛑 Graceful server shutdown handling (SIGTERM/SIGINT)
+- ⚡ Minimized request interruptions during restarts
+
+### 6.6 Scalable and Performance-Aware Design
+
+- 📦 Maximum 1,000 products per batch (configurable)
+- ⏱️ 150ms delay between uploads to respect marketplace rate limits
+- 🗜️ Response compression for improved performance
+
+---
+
+## 🏗 Technology Architecture
 
 ### Frontend
-| Technology | Purpose | Why We Chose It |
-|------------|---------|-----------------|
-| **React 18.3** | UI Framework | Component-based, excellent ecosystem |
-| **TypeScript** | Type Safety | Catch errors at compile time |
-| **Tailwind CSS** | Styling | Rapid, consistent UI development |
-| **Vite** | Build Tool | Lightning-fast HMR and builds |
-| **shadcn/ui** | Components | Beautiful, accessible UI components |
-| **TanStack Query** | Data Fetching | Powerful caching and sync |
-| **React Hook Form** | Forms | Performant form handling |
-| **Zod** | Validation | Type-safe schema validation |
+
+| Technology | Purpose |
+|------------|---------|
+| **React 18.3** | UI Framework |
+| **TypeScript 5.5** | Type Safety |
+| **Tailwind CSS** | Styling |
+| **Vite** | Build Tool |
+| **shadcn/ui** | Component Library |
 
 ### Backend
-| Technology | Purpose | Why We Chose It |
-|------------|---------|-----------------|
-| **Express.js** | API Server | Lightweight, flexible, proven |
-| **TypeScript** | Type Safety | Consistent with frontend |
-| **MongoDB** | Database | Flexible schema, great for logs |
-| **Mongoose** | ODM | Elegant MongoDB modeling |
+
+| Technology | Purpose |
+|------------|---------|
+| **Express.js 4.x** | API Server |
+| **TypeScript** | Type Safety |
+| **MongoDB** | Database |
+| **Mongoose** | ODM |
+| **Helmet.js** | Security Headers |
+| **express-rate-limit** | Rate Limiting |
 
 ### External Services
+
 | Service | Purpose |
 |---------|---------|
 | **Coupang Wing API** | Product management on Coupang |
-| **Lovable AI** | Translation and AI features |
+| **Google Gemini API** | Translation and AI features |
 
----
-
-## 🏗 Architecture
+### Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      CLIENT (React + Vite)                   │
+│                    CLIENT (React + Vite)                     │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │ File Upload │  │  Product    │  │   Wing Settings     │  │
@@ -168,23 +224,140 @@ A powerful, intelligent product upload system that transforms the tedious manual
 │  ┌─────────────────┐  ┌─────────────────┐  ┌───────────────┐ │
 │  │  /api/coupang   │  │  /api/translate │  │   /health     │ │
 │  │   - validate    │  │   - AI powered  │  │   - status    │ │
-│  │   - upload      │  │   - batch       │  └───────────────┘ │
-│  │   - categories  │  └────────┬────────┘                    │
-│  └────────┬────────┘           │                             │
+│  │   - upload      │  │   - batch       │  │   - uptime    │ │
+│  │   - categories  │  └────────┬────────┘  │   - memory    │ │
+│  └────────┬────────┘           │           └───────────────┘ │
 │           │                    │                             │
 │  ┌────────▼────────────────────▼────────────────────────────┐│
 │  │              Services Layer                               ││
-│  │  coupangApi.ts  │  hmacSignature.ts  │  translateApi.ts  ││
+│  │  coupangApi.ts  │  hmacSignature.ts  │  translate.ts     ││
 │  └────────┬─────────────────────────────────────────────────┘│
-└───────────┼──────────────────────────────────────────────────┘
+│           │                                                  │
+│  ┌────────▼────────────────────────────────────────────────┐ │
+│  │         Security & Middleware Layer                      │ │
+│  │  Helmet │ Rate Limit │ CORS │ Compression │ Validation  │ │
+│  └──────────────────────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────┘
             │
 ┌───────────▼──────────────┐     ┌─────────────────────────────┐
 │      COUPANG WING API    │     │         MONGODB             │
 │  - Product Management    │     │   - Upload History          │
-│  - Category Data         │     │   - Error Logs              │
-│  - Shipping Centers      │     │   - Analytics               │
+│  - Category Data         │     │   - Category Metadata       │
+│  - Shipping Centers      │     │   - Error Logs              │
 └──────────────────────────┘     └─────────────────────────────┘
 ```
+
+---
+
+## 🤖 AI Strategy
+
+### Current State: AI-Assisted Automation
+
+Catalogix currently uses AI as an automation and decision-support layer for:
+
+- 🌐 Language translation (English → Korean)
+- 🏷️ Category recommendation
+- 📊 Attribute extraction
+- 📝 Compliance content generation
+
+Human review remains part of the workflow where required.
+
+### Future Direction: Agentic AI
+
+Catalogix is designed to evolve into an agentic AI-driven platform. In future phases, AI agents will:
+
+- 📈 Analyze product and marketplace data
+- 💰 Recommend optimal pricing and listing strategies
+- 🔄 Execute multi-step workflows autonomously
+- 🧠 Learn continuously from upload outcomes and errors
+
+This evolution will transform Catalogix from a bulk upload system into an intelligent commerce orchestration layer.
+
+---
+
+## 📊 Development Status
+
+### Phase 1: Core Upload Engine ✅ Completed
+
+- ✅ Bulk product upload engine
+- ✅ Marketplace validation layer
+- ✅ AI-powered translation
+- ✅ Category recommendation
+- ✅ Real-time progress tracking
+- ✅ Production-ready security
+
+### Phase 2: Pricing and Repricing Automation 🔄 In Progress
+
+- 🔄 Rule-based repricing
+- 🔄 Margin and fee-aware pricing logic
+- 🔄 Marketplace-specific price adjustments
+- 🔄 Foundations for competitive pricing analysis
+
+---
+
+## 📘 Usage Workflow
+
+1. **Configure** → Enter marketplace API credentials
+2. **Settings** → Define shipping, return, and pricing settings
+3. **Upload** → Import product files (CSV or Excel)
+4. **Review** → Check automatically mapped product data
+5. **Translate** → Apply AI translation and validation
+6. **Execute** → Bulk upload to marketplace
+7. **Monitor** → Review reports and error logs
+
+---
+
+## 🔐 Security & Compliance
+
+### Server-Side Security
+
+| Feature | Implementation |
+|---------|---------------|
+| Rate Limiting | 60 req/min API, 100 req/15 min general |
+| Security Headers | Helmet.js (XSS, clickjacking, MIME protection) |
+| Request Signing | HMAC-SHA256 for marketplace APIs |
+| Configuration | Environment-based sensitive data management |
+| Input Validation | Strict sanitization on all endpoints |
+| Error Handling | Production errors never leak sensitive data |
+| Shutdown | Graceful SIGTERM/SIGINT handling |
+
+### Client-Side Security
+
+| Feature | Implementation |
+|---------|---------------|
+| Credential Storage | Browser localStorage only (never on server) |
+| Validation | Real-time credential verification |
+| API Routing | All marketplace calls through secure backend |
+
+### Compliance
+
+| Feature | Implementation |
+|---------|---------------|
+| CORS | Configured allowed origins |
+| Logging | Request logging for audit trails |
+| Batch Limits | Maximum 1,000 products per request |
+
+---
+
+## 💼 Business Value
+
+### For Sellers
+
+- ⏱️ Significant reduction in catalog onboarding time
+- ✅ Reduced operational errors
+- 🌏 Faster expansion into non-English marketplaces
+
+### For Agencies
+
+- 📈 Ability to manage multiple clients at scale
+- 🔄 Consistent and standardized workflows
+- 📊 Improved delivery timelines and reporting
+
+### For Enterprises
+
+- 🏗️ Scalable, API-first architecture
+- ⚙️ Customizable workflows
+- 🤖 Future-ready AI-driven automation
 
 ---
 
@@ -192,19 +365,22 @@ A powerful, intelligent product upload system that transforms the tedious manual
 
 ### Prerequisites
 
-- **Node.js** 18+ 
+- **Node.js** 18+
 - **MongoDB** (local or Atlas)
 - **Coupang Wing API Credentials** (Access Key, Secret Key, Vendor ID)
+- **Gemini API Key** (for AI translation)
 
 ### Installation
 
 #### 1. Clone the Repository
+
 ```bash
-git clone https://github.com/your-org/coupang-product-uploader.git
-cd coupang-product-uploader
+git clone https://github.com/frostrek/catalogix.git
+cd catalogix
 ```
 
 #### 2. Setup Backend
+
 ```bash
 cd backend
 npm install
@@ -212,34 +388,31 @@ cp .env.example .env
 ```
 
 Edit `.env`:
+
 ```env
 PORT=3001
-MONGODB_URI=mongodb://localhost:27017/coupang_uploader
-LOVABLE_API_KEY=your_lovable_api_key  # For AI translation
+NODE_ENV=development
+MONGODB_URI=mongodb://localhost:27017/catalogix
+GEMINI_API_KEY=your_gemini_api_key
+CORS_ORIGIN=http://localhost:5173
 ```
 
 Start the backend:
+
 ```bash
 npm run dev
 ```
 
 #### 3. Setup Frontend
+
 ```bash
 cd ..  # Back to project root
 npm install
-```
-
-Create `.env.local`:
-```env
-VITE_BACKEND_URL=http://localhost:3001/api
-```
-
-Start the frontend:
-```bash
 npm run dev
 ```
 
 #### 4. Access the Application
+
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
@@ -247,185 +420,80 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 ## 📖 API Documentation
 
 ### Base URL
+
 ```
-Production: https://your-domain.com/api
-Development: http://localhost:3001/api
+Development: Haven't added yet
+Production: Haven't added yet
 ```
 
 ### Endpoints
 
 #### Health Check
+
 ```http
 GET /health
 ```
-Response: `{ "status": "ok", "timestamp": "..." }`
+
+Response:
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-12-28T12:00:00.000Z",
+  "environment": "development",
+  "uptime": 3600,
+  "memory": {
+    "used": "45MB",
+    "total": "65MB"
+  }
+}
+```
 
 #### Coupang Operations
+
 ```http
 POST /api/coupang
 Content-Type: application/json
 ```
 
-**Actions:**
-
-| Action | Description | Required Fields |
-|--------|-------------|-----------------|
-| `validate` | Validate API credentials | `credentials` |
-| `upload` | Upload products to Coupang | `credentials`, `wingSettings`, `products` |
-| `validate-products` | Validate without uploading | `credentials`, `wingSettings`, `products` |
-| `recommend-category` | Get AI category recommendation | `credentials`, `productName` |
-| `fetch-category-meta` | Get category requirements | `credentials`, `categoryCode` |
-| `fetch-shipping-centers` | Get shipping locations | `credentials` |
-
-**Example: Validate Credentials**
-```bash
-curl -X POST http://localhost:3001/api/coupang \
-  -H "Content-Type: application/json" \
-  -d '{
-    "action": "validate",
-    "credentials": {
-      "accessKey": "your-access-key",
-      "secretKey": "your-secret-key",
-      "vendorId": "your-vendor-id"
-    }
-  }'
-```
+| Action | Description |
+|--------|-------------|
+| `validate` | Validate API credentials |
+| `upload` | Upload products to Coupang |
+| `validate-products` | Validate without uploading |
+| `recommend-category` | Get AI category recommendation |
+| `fetch-category-meta` | Get category requirements |
+| `fetch-shipping-centers` | Get shipping locations |
 
 #### Translation
+
 ```http
 POST /api/translate
 Content-Type: application/json
 ```
 
-**Example:**
-```bash
-curl -X POST http://localhost:3001/api/translate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "products": [
-      {
-        "name": "Wireless Bluetooth Headphones",
-        "description": "High quality sound with noise cancellation"
-      }
-    ]
-  }'
-```
-
----
-
-## 📘 Usage Guide
-
-### Step 1: Configure API Credentials
-1. Enter your Coupang Wing API credentials
-2. Click "Validate" to confirm connection
-3. Credentials are validated in real-time
-
-### Step 2: Configure Wing Settings
-1. Set your return center and outbound shipping location
-2. Configure delivery charges and pricing
-3. Set seller information and policies
-
-### Step 3: Upload Product File
-1. Prepare your CSV/Excel file with product data
-2. Drag & drop or click to upload
-3. Review auto-mapped columns
-4. Verify product data in the preview table
-
-### Step 4: Translate (Optional)
-1. Click "Translate All" to convert to Korean
-2. AI maintains SEO-friendly translations
-3. Review translations before proceeding
-
-### Step 5: Upload to Coupang
-1. Click "Upload to Coupang"
-2. Monitor real-time progress
-3. Review success/failure reports
-4. Download error logs if needed
-
----
-
-## 🔒 Security
-
-### Best Practices Implemented
-
-- ✅ **No Client-Side API Keys**: All Coupang API calls routed through backend
-- ✅ **HMAC-SHA256 Signing**: Secure request authentication
-- ✅ **Environment Variables**: Sensitive data never in code
-- ✅ **Input Validation**: All inputs sanitized and validated
-- ✅ **Error Handling**: No sensitive data in error messages
-
-### Credential Security
-- API credentials are never stored permanently
-- Session-based credential management
-- Credentials validated before any operation
+Translates product data from English to Korean using AI.
 
 ---
 
 ## 🗺 Roadmap
 
-### Phase 1: Core Features ✅
-- [x] Bulk product upload
-- [x] AI-powered translation
-- [x] Category recommendation
-- [x] Validation system
-- [x] Progress tracking
+### 2026 Q1-Q2
 
-### Phase 2: Enhanced Automation (Q1 2025)
-- [ ] **Scheduled Uploads**: Set automatic upload times
-- [ ] **Price Monitoring**: Track competitor prices
-- [ ] **Inventory Sync**: Real-time stock updates
-- [ ] **Template System**: Save product templates
+- [ ] Advanced repricing and pricing intelligence
+- [ ] Analytics and performance insights
+- [ ] Upload history UI dashboard
 
-### Phase 3: Analytics & Insights (Q2 2025)
-- [ ] **Sales Dashboard**: Track product performance
-- [ ] **Category Analytics**: Optimize category placement
-- [ ] **Pricing Recommendations**: AI-driven price optimization
-- [ ] **Trend Analysis**: Market trend insights
+### 2026 Q3-Q4
 
-### Phase 4: Multi-Platform (Q3 2025)
-- [ ] **11Street Integration**: Expand to 11st.co.kr
-- [ ] **Gmarket Support**: Add Gmarket marketplace
-- [ ] **Naver Shopping**: Naver Smart Store integration
-- [ ] **Unified Dashboard**: Manage all platforms
+- [ ] Multi-marketplace expansion (Ozon, Amazon)
+- [ ] Unified multi-platform dashboard
+- [ ] Enterprise collaboration and role-based access
 
-### Phase 5: Enterprise Features (Q4 2025)
-- [ ] **Team Collaboration**: Multi-user support
-- [ ] **Role-Based Access**: Permission management
-- [ ] **API Access**: Developer API for integrations
-- [ ] **White-Label**: Brandable solution
-- [ ] **SLA & Support**: Enterprise support tier
+### 2026+
 
----
-
-## 💼 Business Benefits
-
-### For E-commerce Sellers
-- **90% Time Savings**: Upload products in minutes, not hours
-- **Reduced Errors**: Automated validation prevents costly mistakes
-- **Market Expansion**: Easy entry into Korean market
-
-### For Agencies
-- **Scale Operations**: Manage multiple client accounts
-- **Consistent Quality**: Standardized upload process
-- **Client Reporting**: Track upload success rates
-
-### For Enterprises
-- **Integration Ready**: API-first architecture
-- **Customizable**: Adapt to specific workflows
-- **Secure**: Enterprise-grade security practices
-
----
-
-## 📞 Support
-
-### Documentation
-- [Full API Documentation](./docs/api.md)
-- [Setup Guide](./docs/setup.md)
-- [Troubleshooting](./docs/troubleshooting.md)
-
-### Contact
-- **Email**: support@your-company.com
-- **GitHub Issues**: [Report a bug](https://github.com/your-org/coupang-uploader/issues)
+- [ ] Public APIs and white-label deployment
+- [ ] Agentic AI for autonomous operations
+- [ ] Advanced analytics and market intelligence
 
 ---
 
@@ -436,9 +504,10 @@ This project is proprietary software. All rights reserved.
 ---
 
 <p align="center">
-  <strong>Built with ❤️ for E-commerce Success</strong>
+  <strong>Built by Frostrek</strong><br/>
+  <em>Enterprise Solutions for Global E-commerce Automation</em>
 </p>
 
 <p align="center">
-  <a href="#-overview">Back to Top</a>
+  <a href="#-introduction">Back to Top</a>
 </p>

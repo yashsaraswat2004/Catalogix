@@ -145,16 +145,34 @@ export function CategoryRequirements({ product, credentials }: CategoryRequireme
     }
   };
 
+  // Check if category code is a valid Coupang display category code (5-6 digit number)
+  const isValidCategoryCode = (code: string | undefined): boolean => {
+    if (!code) return false;
+    // Extract the last part if it contains '>'
+    const parts = code.split('>');
+    const lastPart = parts[parts.length - 1].trim();
+    const numCode = parseInt(lastPart, 10);
+    // Valid Coupang category codes are typically 5-6 digit numbers
+    return !isNaN(numCode) && numCode >= 10000 && numCode <= 999999;
+  };
+
   useEffect(() => {
-    if (categoryCode && credentials) {
+    if (isValidCategoryCode(categoryCode) && credentials) {
       loadCategoryMeta();
+    } else {
+      // Reset meta if category is not valid
+      setMeta({
+        mandatoryAttributes: [],
+        bundleGroups: [],
+        loading: false,
+      });
     }
   }, [categoryCode, credentials?.accessKey]);
 
-  if (!categoryCode) {
+  if (!categoryCode || !isValidCategoryCode(categoryCode)) {
     return (
       <div className="text-sm text-muted-foreground italic">
-        Set a category to see requirements
+        Click "Recommend" to get a valid category code and see requirements
       </div>
     );
   }

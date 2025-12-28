@@ -25,7 +25,7 @@ Express.js backend for the Coupang Product Uploader application.
    ```env
    PORT=3001
    MONGODB_URI=mongodb://localhost:27017/coupang_uploader
-   LOVABLE_API_KEY=your_lovable_api_key_here
+   GEMINI_API_KEY=your_gemini_api_key_here
    ```
 
 3. **Start MongoDB** (if running locally)

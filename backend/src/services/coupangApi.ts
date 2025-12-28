@@ -2,8 +2,6 @@ import { generateHmacSignature } from './hmacSignature';
 
 const COUPANG_API_BASE = 'https://api-gateway.coupang.com';
 
-// ============ Helper Functions ============
-
 export function extractDisplayCategoryCode(category: any): number {
   if (!category) return 0;
   const parts = String(category).split('>');
@@ -92,8 +90,6 @@ export async function fetchCategoryRelatedMeta(
   cache.set(displayCategoryCode, meta);
   return meta;
 }
-
-// ============ Auto Notice Content ============
 
 function getAutoNoticeContent(detailName: string, product: any, wingSettings: any): string {
   const normalized = String(detailName || '').replace(/\s+/g, '');
@@ -184,8 +180,6 @@ export function buildNoticesFromCategoryMeta(product: any, wingSettings: any, me
   });
 }
 
-// ============ Attribute Extraction Helpers ============
-
 function extractCountFromText(text: string, patterns: string[]): string | null {
   for (const pattern of patterns) {
     const regex = new RegExp(`(\\d+)\\s*${pattern}s?`, 'i');
@@ -246,24 +240,45 @@ function extractQuantityFromText(text: string): string | null {
 
 function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | null {
   const productName = (product.productName || '').toLowerCase();
-  const description = (product.description || '').toLowerCase();
-  const combined = `${productName} ${description}`;
+  const description = (product.detailedDescription || product.description || '').toLowerCase();
+  
+  // Include option values in the search text
+  const optionValues = [
+    product.optionValue1 || '',
+    product.optionValue2 || '',
+    product.optionValue3 || '',
+    product.optionValue4 || ''
+  ].join(' ').toLowerCase();
+  
+  const combined = `${productName} ${description} ${optionValues}`;
   
   const priorityMap: { [key: string]: { patterns: string[]; extractor: (p: any, c: string) => string | null } } = {
     '개당 캡슐/정': {
-      patterns: ['tablet', 'capsule', 'cap', '정', '캡슐', 'tabs', 'vcaps', 'softgel'],
-      extractor: (p, c) => extractCountFromText(c, ['tablet', 'capsule', '정', '캡슐', 'cap', 'tabs']) || '60정'
+      patterns: ['tablet', 'capsule', 'cap', '정', '캡슐', 'tabs', 'vcaps', 'softgel', 'pills', 'ct'],
+      extractor: (p, c) => extractCountFromText(c, ['tablet', 'capsule', '정', '캡슐', 'cap', 'tabs', 'ct']) || '60정'
     },
     '개당 중량': {
-      patterns: ['g', 'gram', 'kg', 'mg', '그램', 'weight', '중량'],
+      patterns: ['g', 'gram', 'kg', 'mg', '그램', 'weight', '중량', 'oz', 'lb'],
       extractor: (p, c) => extractWeightFromText(c) || '100g'
     },
     '개당 용량': {
+      patterns: ['ml', 'l', 'oz', 'liter', '리터', 'volume', '용량', 'fl oz'],
+      extractor: (p, c) => extractVolumeFromText(c) || '100ml'
+    },
+    '최소 중량': {
+      patterns: ['g', 'gram', 'kg', 'mg', '그램', 'weight', '중량'],
+      extractor: (p, c) => extractWeightFromText(c) || '100g'
+    },
+    '최소 용량': {
       patterns: ['ml', 'l', 'oz', 'liter', '리터', 'volume', '용량'],
       extractor: (p, c) => extractVolumeFromText(c) || '100ml'
     },
     '수량': {
-      patterns: ['pack', 'bag', 'piece', 'ea', '개', '팩', 'set', 'box'],
+      patterns: ['pack', 'bag', 'piece', 'ea', '개', '팩', 'set', 'box', 'count', 'ct', 'bags'],
+      extractor: (p, c) => extractQuantityFromText(c) || '1개'
+    },
+    '개당 수량': {
+      patterns: ['pack', 'bag', 'piece', 'ea', '개', '팩', 'set', 'box', 'per', 'bags'],
       extractor: (p, c) => extractQuantityFromText(c) || '1개'
     }
   };
@@ -301,24 +316,47 @@ function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | nu
 
 function inferAttributeValue(attrMeta: any, product: any): string | null {
   const typeName = (attrMeta.attributeTypeName || '').toLowerCase();
-  const combined = `${product.productName || ''} ${product.description || ''}`.toLowerCase();
+  const productName = (product.productName || '').toLowerCase();
+  const description = (product.detailedDescription || product.description || '').toLowerCase();
   
+  // Also include option values in the text to search
+  const optionValues = [
+    product.optionValue1 || '',
+    product.optionValue2 || '',
+    product.optionValue3 || '',
+    product.optionValue4 || ''
+  ].join(' ').toLowerCase();
+  
+  const combined = `${productName} ${description} ${optionValues}`;
+  
+  // 수량 (quantity) - extract numeric count
   if (typeName.includes('수량') || typeName.includes('quantity')) {
     return extractQuantityFromText(combined) || '1개';
   }
   
+  // 개당 수량 (per unit count)
+  if (typeName.includes('개당 수량')) {
+    const match = combined.match(/(\d+)\s*(bags?|packs?|pieces?|개|팩|ea)/i);
+    if (match) return `${match[1]}개`;
+    return '1개';
+  }
+  
+  // 용량/개당 용량/최소 용량 (volume)
   if (typeName.includes('용량') || typeName.includes('volume')) {
     return extractVolumeFromText(combined) || '상세페이지 참조';
   }
   
+  // 중량/개당 중량/최소 중량 (weight)
   if (typeName.includes('중량') || typeName.includes('weight')) {
     return extractWeightFromText(combined) || '상세페이지 참조';
   }
   
+  // 캡슐/정 (tablets/capsules)
   if (typeName.includes('캡슐') || typeName.includes('정') || typeName.includes('tablet')) {
-    return extractCountFromText(combined, ['tablet', 'capsule', '정', '캡슐']) || '상세페이지 참조';
+    return extractCountFromText(combined, ['tablet', 'capsule', '정', '캡슐', 'ct', 'tabs']) || '상세페이지 참조';
   }
   
+  // If the metadata has predefined values, use the first one
   const values = attrMeta.attributeValueMetas || [];
   if (values.length > 0) {
     return values[0].attributeValueName || '상세페이지 참조';
@@ -327,43 +365,82 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
   return '상세페이지 참조';
 }
 
+// English to Korean attribute name mapping for value extraction
+const ENGLISH_ATTR_PATTERNS: { [key: string]: { koreanNames: string[]; valuePatterns: RegExp[] } } = {
+  'size': { 
+    koreanNames: ['사이즈', '크기'],
+    valuePatterns: [/(\d+)\s*(tablets?|capsules?|정|캡슐|ct)/i, /(\d+)\s*(g|kg|mg|ml|l)/i]
+  },
+  'weight': { 
+    koreanNames: ['중량', '개당 중량', '최소 중량'],
+    valuePatterns: [/(\d+(?:\.\d+)?)\s*(g|kg|mg|oz|lb)/i]
+  },
+  'volume': { 
+    koreanNames: ['용량', '개당 용량', '최소 용량'],
+    valuePatterns: [/(\d+(?:\.\d+)?)\s*(ml|l|oz|fl)/i]
+  },
+  'pack size': { 
+    koreanNames: ['개당 수량', '수량'],
+    valuePatterns: [/(\d+)\s*(bags?|packs?|pieces?|개|팩|box|set)/i]
+  },
+  'quantity': { 
+    koreanNames: ['수량', '개당 수량'],
+    valuePatterns: [/(\d+)\s*(개|ea|pcs?|pieces?)/i]
+  },
+  'tablets': { 
+    koreanNames: ['개당 캡슐/정'],
+    valuePatterns: [/(\d+)\s*(tablets?|정)/i]
+  },
+  'capsules': { 
+    koreanNames: ['개당 캡슐/정'],
+    valuePatterns: [/(\d+)\s*(capsules?|캡슐)/i]
+  },
+  'type': { 
+    koreanNames: ['종류', '형태'],
+    valuePatterns: []
+  },
+};
+
+// Extract a numeric value with unit from text based on patterns
+function extractValueFromText(text: string, patterns: RegExp[]): string | null {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+  return null;
+}
+
 export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] {
   const attributes: any[] = [];
-  const providedAttributes = new Set<string>();
-  
-  if (product.optionType1 && product.optionValue1) {
-    attributes.push({
-      attributeTypeName: product.optionType1.substring(0, 25),
-      attributeValueName: product.optionValue1.substring(0, 30)
-    });
-    providedAttributes.add(product.optionType1.toLowerCase());
-  }
-  if (product.optionType2 && product.optionValue2) {
-    attributes.push({
-      attributeTypeName: product.optionType2.substring(0, 25),
-      attributeValueName: product.optionValue2.substring(0, 30)
-    });
-    providedAttributes.add(product.optionType2.toLowerCase());
-  }
-  if (product.optionType3 && product.optionValue3) {
-    attributes.push({
-      attributeTypeName: product.optionType3.substring(0, 25),
-      attributeValueName: product.optionValue3.substring(0, 30)
-    });
-    providedAttributes.add(product.optionType3.toLowerCase());
-  }
-  if (product.optionType4 && product.optionValue4) {
-    attributes.push({
-      attributeTypeName: product.optionType4.substring(0, 25),
-      attributeValueName: product.optionValue4.substring(0, 30)
-    });
-    providedAttributes.add(product.optionType4.toLowerCase());
-  }
+  const usedAttrNames = new Set<string>();
   
   const attributeTypeMetas = meta?.attributeTypeMetas || [];
   const bundleGroups = new Map<number, any[]>();
   const mandatoryAttributes: any[] = [];
   
+  // Collect valid attribute names from category metadata
+  const validAttrNames = new Set<string>();
+  for (const attrMeta of attributeTypeMetas) {
+    validAttrNames.add(attrMeta.attributeTypeName?.toLowerCase() || '');
+  }
+  
+  // Build combined text for extraction
+  const productName = (product.productName || '').toLowerCase();
+  const description = (product.detailedDescription || product.description || '').toLowerCase();
+  const combined = `${productName} ${description}`;
+  
+  // Collect user-provided option values (for value extraction, not for attribute names)
+  const userOptionValues: string[] = [];
+  if (product.optionValue1) userOptionValues.push(product.optionValue1);
+  if (product.optionValue2) userOptionValues.push(product.optionValue2);
+  if (product.optionValue3) userOptionValues.push(product.optionValue3);
+  if (product.optionValue4) userOptionValues.push(product.optionValue4);
+  const optionValuesText = userOptionValues.join(' ').toLowerCase();
+  const allText = `${combined} ${optionValuesText}`;
+  
+  // Categorize attributes from metadata
   for (const attrMeta of attributeTypeMetas) {
     const required = attrMeta.required === 'MANDATORY';
     const groupNumber = attrMeta.groupNumber || 0;
@@ -381,56 +458,65 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   }
   
   console.log(`[Attributes] Found ${mandatoryAttributes.length} mandatory attrs, ${bundleGroups.size} bundle groups`);
+  console.log(`[Attributes] Valid attr names for category: ${Array.from(validAttrNames).slice(0, 10).join(', ')}...`);
   
+  // Process bundle groups - MUST select exactly one from each group
   for (const [groupNum, groupAttrs] of bundleGroups) {
-    const alreadyProvided = groupAttrs.some(attr => 
-      providedAttributes.has(attr.attributeTypeName?.toLowerCase())
-    );
-    
-    if (alreadyProvided) {
-      console.log(`[Attributes] Bundle group ${groupNum}: already provided`);
-      continue;
-    }
-    
+    // Try to find the best match based on product content
     const selectedAttr = selectBestAttributeFromGroup(groupAttrs, product);
     if (selectedAttr) {
       attributes.push(selectedAttr);
+      usedAttrNames.add(selectedAttr.attributeTypeName.toLowerCase());
       console.log(`[Attributes] Bundle group ${groupNum}: selected ${selectedAttr.attributeTypeName}=${selectedAttr.attributeValueName}`);
+    } else {
+      // Fallback: use the first attribute in the group with inferred value
+      const firstAttr = groupAttrs[0];
+      if (firstAttr) {
+        const value = inferAttributeValue(firstAttr, product) || '상세페이지 참조';
+        attributes.push({
+          attributeTypeName: firstAttr.attributeTypeName.substring(0, 25),
+          attributeValueName: value.substring(0, 30)
+        });
+        usedAttrNames.add(firstAttr.attributeTypeName.toLowerCase());
+        console.log(`[Attributes] Bundle group ${groupNum}: fallback ${firstAttr.attributeTypeName}=${value}`);
+      }
     }
   }
   
+  // Process standalone mandatory attributes
   for (const attrMeta of mandatoryAttributes) {
     const attrName = attrMeta.attributeTypeName;
     
-    if (providedAttributes.has(attrName?.toLowerCase())) {
+    if (usedAttrNames.has(attrName?.toLowerCase())) {
       continue;
     }
     
-    const value = inferAttributeValue(attrMeta, product);
-    if (value) {
-      attributes.push({
-        attributeTypeName: attrName.substring(0, 25),
-        attributeValueName: value.substring(0, 30)
-      });
-      console.log(`[Attributes] Mandatory: ${attrName}=${value}`);
-    }
+    const value = inferAttributeValue(attrMeta, product) || '상세페이지 참조';
+    attributes.push({
+      attributeTypeName: attrName.substring(0, 25),
+      attributeValueName: value.substring(0, 30)
+    });
+    usedAttrNames.add(attrName.toLowerCase());
+    console.log(`[Attributes] Mandatory: ${attrName}=${value}`);
   }
   
+  // Always ensure 수량 (quantity) is present if it's a valid attribute for this category
   const hasQuantity = attributes.some(a => 
-    a.attributeTypeName?.includes('수량') || a.attributeTypeName?.toLowerCase().includes('quantity')
+    a.attributeTypeName?.includes('수량')
   );
   
-  if (!hasQuantity && attributes.length === 0) {
+  if (!hasQuantity && validAttrNames.has('수량')) {
+    const qtyValue = extractQuantityFromText(allText) || '1개';
     attributes.push({
       attributeTypeName: "수량",
-      attributeValueName: "1개"
+      attributeValueName: qtyValue
     });
+    console.log(`[Attributes] Added default 수량=${qtyValue}`);
   }
   
+  console.log(`[Attributes] Final attributes count: ${attributes.length}`);
   return attributes;
 }
-
-// ============ Product Transformation ============
 
 export function transformProductToCoupangFormat(product: any, vendorId: string, wingSettings: any, notices?: any[], categoryMeta?: any): any {
   let categoryCode = 0;
@@ -645,8 +731,6 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
   return payload;
 }
 
-// ============ Validation ============
-
 export function validateProductForUpload(product: any, wingSettings: any): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -677,8 +761,6 @@ export function validateProductForUpload(product: any, wingSettings: any): { val
 
   return { valid: errors.length === 0, errors };
 }
-
-// ============ API Calls ============
 
 export async function validateCredentials(accessKey: string, secretKey: string, vendorId: string): Promise<{ valid: boolean; message: string }> {
   const method = "GET";

@@ -13,6 +13,50 @@ import { generateHmacSignature } from '../services/hmacSignature';
 
 const router = Router();
 
+const VALID_ACTIONS = [
+  'validate', 'upload', 'validate-products', 'test-signature',
+  'fetch-shipping-centers', 'recommend-category', 'validate-category', 'fetch-category-meta'
+];
+
+function sanitizeString(str: any): string {
+  if (typeof str !== 'string') return '';
+  // Remove potential XSS/injection characters but keep Korean and other unicode
+  return str.trim().slice(0, 10000);
+}
+
+function validateCredentialsInput(credentials: any): { valid: boolean; error?: string } {
+  if (!credentials || typeof credentials !== 'object') {
+    return { valid: false, error: 'Credentials must be an object' };
+  }
+  
+  const { accessKey, secretKey, vendorId } = credentials;
+  
+  if (!accessKey || typeof accessKey !== 'string' || accessKey.length < 10) {
+    return { valid: false, error: 'Invalid Access Key format' };
+  }
+  if (!secretKey || typeof secretKey !== 'string' || secretKey.length < 10) {
+    return { valid: false, error: 'Invalid Secret Key format' };
+  }
+  if (!vendorId || typeof vendorId !== 'string' || vendorId.length < 3) {
+    return { valid: false, error: 'Invalid Vendor ID format' };
+  }
+  
+  return { valid: true };
+}
+
+function validateProductsInput(products: any): { valid: boolean; error?: string } {
+  if (!Array.isArray(products)) {
+    return { valid: false, error: 'Products must be an array' };
+  }
+  if (products.length === 0) {
+    return { valid: false, error: 'No products provided' };
+  }
+  if (products.length > 1000) {
+    return { valid: false, error: 'Maximum 1000 products per batch' };
+  }
+  return { valid: true };
+}
+
 // Main endpoint - handles all actions via POST body
 router.post('/', async (req: Request, res: Response) => {
   try {
@@ -29,13 +73,22 @@ router.post('/', async (req: Request, res: Response) => {
       categoryCode: reqCategoryCode
     } = req.body;
 
+    // Validate action
+    if (!action || !VALID_ACTIONS.includes(action)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Invalid action. Valid actions: ${VALID_ACTIONS.join(', ')}` 
+      });
+    }
+
     console.log('[API] Action:', action, '| Products count:', products?.length || 0, '| Dry run:', dryRun);
 
     // Validate credentials
-    if (!credentials || !credentials.accessKey || !credentials.secretKey || !credentials.vendorId) {
+    const credCheck = validateCredentialsInput(credentials);
+    if (!credCheck.valid) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Missing API credentials. Please provide accessKey, secretKey, and vendorId.' 
+        error: credCheck.error || 'Invalid credentials'
       });
     }
 
@@ -48,10 +101,12 @@ router.post('/', async (req: Request, res: Response) => {
       }
 
       case 'upload': {
-        if (!products || !Array.isArray(products) || products.length === 0) {
+        // Validate products array
+        const productsCheck = validateProductsInput(products);
+        if (!productsCheck.valid) {
           return res.status(400).json({ 
             success: false, 
-            error: 'No products provided for upload.' 
+            error: productsCheck.error 
           });
         }
 
@@ -119,10 +174,12 @@ router.post('/', async (req: Request, res: Response) => {
       }
 
       case 'validate-products': {
-        if (!products || !Array.isArray(products) || products.length === 0) {
+        // Validate products array
+        const valProductsCheck = validateProductsInput(products);
+        if (!valProductsCheck.valid) {
           return res.status(400).json({ 
             success: false, 
-            error: 'No products provided for validation.' 
+            error: valProductsCheck.error 
           });
         }
 
@@ -130,7 +187,7 @@ router.post('/', async (req: Request, res: Response) => {
           const validation = validateProductForUpload(p, wingSettings || {});
           return {
             index: idx,
-            productName: p.productName,
+            productName: sanitizeString(p.productName),
             valid: validation.valid,
             errors: validation.errors
           };

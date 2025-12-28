@@ -1,9 +1,5 @@
-// ============================================================
-// Coupang Open API - Official Type Definitions
-// Based on: https://developers.coupangcorp.com/hc/en-us/articles/360033877853-Product-Creation
-// ============================================================
-
-// ==================== API REQUEST TYPES ====================
+// Coupang Open API Type Definitions
+// Docs: https://developers.coupangcorp.com/hc/en-us/articles/360033877853-Product-Creation
 
 // Main product creation request structure
 export interface CoupangProductRequest {
@@ -118,9 +114,7 @@ export type DeliveryChargeType = 'FREE' | 'NOT_FREE' | 'CHARGE_RECEIVED' | 'COND
 export type UnionDeliveryType = 'UNION_DELIVERY' | 'NOT_UNION_DELIVERY';
 export type OfferCondition = 'NEW' | 'REFURBISHED' | 'USED_BEST' | 'USED_GOOD' | 'USED_NORMAL';
 
-// ==================== INTERNAL APP TYPES ====================
-
-// Our internal product representation (parsed from XLSM)
+// Internal product representation (parsed from uploaded files)
 export interface CoupangProduct {
   // Basic Info
   category: string;              // Category code or path

@@ -29,11 +29,14 @@ router.post('/', async (req: Request, res: Response) => {
 
     console.log(`[Translate] Translating ${products.length} products...`);
 
-    const lovableApiKey = process.env.LOVABLE_API_KEY;
-    if (!lovableApiKey) {
-      console.error('[Translate] LOVABLE_API_KEY not configured');
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    
+    if (!geminiApiKey) {
+      console.error('[Translate] GEMINI_API_KEY not configured');
       return res.json({ success: false, error: 'Translation service not configured' });
     }
+
+    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
 
     const translatedProducts = [];
 
@@ -71,19 +74,7 @@ router.post('/', async (req: Request, res: Response) => {
         `${i + 1}. [${t.field}]: ${t.text}`
       ).join('\n');
 
-      try {
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [
-              {
-                role: 'system',
-                content: `You are a professional translator specializing in e-commerce product listings. Translate the following English product information into natural, fluent Korean suitable for the Coupang marketplace.
+      const systemPrompt = `You are a professional translator specializing in e-commerce product listings. Translate the following English product information into natural, fluent Korean suitable for the Coupang marketplace.
 
 Rules:
 1. Maintain proper Korean grammar and natural phrasing
@@ -96,24 +87,42 @@ Rules:
 Respond ONLY with a JSON object mapping field names to translated Korean text. Example:
 {"productName": "번역된 상품명", "brand": "브랜드명", ...}
 
-Do not include any explanation, just the JSON object.`
-              },
+Do not include any explanation, just the JSON object.`;
+
+      try {
+        const response = await fetch(geminiApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
               {
-                role: 'user',
-                content: `Translate these product fields from English to Korean:\n\n${translationPrompt}`
+                parts: [
+                  {
+                    text: `${systemPrompt}\n\nTranslate these product fields from English to Korean:\n\n${translationPrompt}`
+                  }
+                ]
               }
             ],
+            generationConfig: {
+              temperature: 0.3,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 2048,
+            }
           }),
         });
 
         if (!response.ok) {
-          console.error(`[Translate] AI API error: ${response.status}`);
+          const errorText = await response.text();
+          console.error(`[Translate] Gemini API error: ${response.status}`, errorText);
           translatedProducts.push(product);
           continue;
         }
 
-        const aiResult = await response.json();
-        const content = aiResult.choices?.[0]?.message?.content || '';
+        const aiResult = await response.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+        const content = aiResult.candidates?.[0]?.content?.parts?.[0]?.text || '';
         
         console.log(`[Translate] AI response for "${data.productName}":`, content.substring(0, 200));
 

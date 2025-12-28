@@ -59,7 +59,13 @@ const Index = () => {
     const savedCreds = localStorage.getItem('coupang_credentials');
     if (savedCreds) {
       try {
-        setCredentials(JSON.parse(savedCreds));
+        const parsedCreds = JSON.parse(savedCreds);
+        setCredentials(parsedCreds);
+        // Also restore validated status
+        const wasValidated = localStorage.getItem('coupang_credentials_validated');
+        if (wasValidated === 'true') {
+          setCredentialsValidated(true);
+        }
       } catch (e) {
         console.error('Failed to parse saved credentials');
       }
@@ -79,6 +85,7 @@ const Index = () => {
     setCredentials(creds);
     setCredentialsValidated(false);
     localStorage.setItem('coupang_credentials', JSON.stringify(creds));
+    localStorage.setItem('coupang_credentials_validated', 'false');
     
     toast({
       title: "Validating API Credentials...",
@@ -89,11 +96,13 @@ const Index = () => {
     
     if (result.valid) {
       setCredentialsValidated(true);
+      localStorage.setItem('coupang_credentials_validated', 'true');
       toast({
         title: "API Credentials Valid",
         description: "Your Coupang API credentials have been verified successfully.",
       });
     } else {
+      localStorage.setItem('coupang_credentials_validated', 'false');
       toast({
         title: "API Credentials Invalid",
         description: result.message,
@@ -373,21 +382,13 @@ const Index = () => {
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="container flex h-16 items-center justify-between px-4 md:px-8">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
-              <Package className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img src="/catalogix_logo1.png" alt="Catalogix" className="w-10 h-10 rounded-xl object-contain" />
             <div>
-              <h1 className="text-lg font-bold">Coupang Bulk Uploader</h1>
-              <p className="text-xs text-muted-foreground">Production-Ready Upload Tool</p>
+              <h1 className="text-lg font-bold">Catalogix</h1>
+              <p className="text-xs text-muted-foreground">Effortless Bulk Product Uploads</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {credentialsValidated && (
-              <div className="flex items-center gap-1.5 text-sm text-green-600">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>API Connected</span>
-              </div>
-            )}
             <ApiSettings credentials={credentials} onSave={handleCredentialsSave} />
           </div>
         </div>

@@ -41,8 +41,6 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
     }
     if (!formData.vendorId.trim()) {
       newErrors.vendorId = 'Vendor ID is required';
-    } else if (!formData.vendorId.startsWith('A')) {
-      newErrors.vendorId = 'Vendor ID must start with A';
     }
 
     setErrors(newErrors);

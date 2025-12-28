@@ -6,7 +6,6 @@
 
 @layer base {
   :root {
-    /* Coupang-inspired color palette */
     --background: 220 20% 97%;
     --foreground: 220 30% 15%;
 
@@ -15,8 +14,8 @@
 
     --popover: 0 0% 100%;
     --popover-foreground: 220 30% 15%;
-
-    /* Coupang Orange - Primary brand color */
+    /* Orange - Primary */
+    
     --primary: 18 95% 55%;
     --primary-foreground: 0 0% 100%;
 

@@ -32,9 +32,9 @@ export function useCoupangApi() {
   // Log which mode we're using
   const logMode = () => {
     if (isUsingLocalFunctions()) {
-      console.log('[CoupangAPI] Using LOCAL edge functions (your IP)');
+      console.log('[CoupangAPI] Using LOCAL backend (your IP)');
     } else {
-      console.log('[CoupangAPI] Using CLOUD edge functions (Lovable Cloud IPs)');
+      console.log('[CoupangAPI] Using CLOUD backend');
     }
   };
 
