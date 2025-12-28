@@ -55,23 +55,23 @@ export function StatsCards({ products }: StatsCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
       {cards.map((card, index) => (
         <div
           key={card.label}
           className={cn(
-            "glass-card p-4 transition-all duration-300 hover:shadow-medium",
+            "glass-card p-3 sm:p-4 transition-all duration-300 hover:shadow-medium",
             "animate-slide-up"
           )}
           style={{ animationDelay: `${index * 100}ms` }}
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">{card.label}</p>
-              <p className="text-2xl font-bold mt-1">{card.value}</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">{card.label}</p>
+              <p className="text-xl sm:text-2xl font-bold mt-0.5 sm:mt-1">{card.value}</p>
             </div>
-            <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", card.bgColor)}>
-              <card.icon className={cn("w-5 h-5", card.color)} />
+            <div className={cn("w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0", card.bgColor)}>
+              <card.icon className={cn("w-4 h-4 sm:w-5 sm:h-5", card.color)} />
             </div>
           </div>
         </div>

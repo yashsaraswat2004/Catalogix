@@ -95,7 +95,7 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
             <Label htmlFor="vendorId">Vendor ID</Label>
             <Input
               id="vendorId"
-              placeholder="A00012345"
+              placeholder="C00012345"
               value={formData.vendorId}
               onChange={(e) => setFormData(prev => ({ ...prev, vendorId: e.target.value }))}
               className={cn(errors.vendorId && "border-destructive")}

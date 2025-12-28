@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { FileUpload } from '@/components/FileUpload';
 import { ProductTable } from '@/components/ProductTable';
 import { ApiSettings } from '@/components/ApiSettings';
@@ -9,7 +10,7 @@ import { ParsedProduct, CoupangApiCredentials, WingSettings, REQUIRED_WING_SETTI
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCoupangApi, UploadResult } from '@/hooks/useCoupangApi';
-import { Upload, Download, RefreshCw, Package, Shield, AlertTriangle, CheckCircle2, Play, Settings } from 'lucide-react';
+import { Upload, Download, RefreshCw, Package, Shield, AlertTriangle, CheckCircle2, Play, Settings, Home, Info, Menu, X } from 'lucide-react';
 import { exportToXlsx } from '@/lib/xlsxParser';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -37,7 +38,7 @@ const DEFAULT_WING_SETTINGS: WingSettings = {
   vendorUserId: '',
 };
 
-const Index = () => {
+const Dashboard = () => {
   const [products, setProducts] = useState<ParsedProduct[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [fileName, setFileName] = useState<string>('');
@@ -50,6 +51,7 @@ const Index = () => {
   const [uploadResults, setUploadResults] = useState<UploadResult[] | null>(null);
   const [activeTab, setActiveTab] = useState('upload');
   const [isTranslating, setIsTranslating] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const { toast } = useToast();
   const { validateCredentials, dryRun, uploadProducts, translateProducts, isValidating, isUploading } = useCoupangApi();
@@ -380,58 +382,103 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-8">
-          <div className="flex items-center gap-3">
-            <img src="/catalogix_logo1.png" alt="Catalogix" className="w-10 h-10 rounded-xl object-contain" />
-            <div>
-              <h1 className="text-lg font-bold">Catalogix</h1>
-              <p className="text-xs text-muted-foreground">Effortless Bulk Product Uploads</p>
-            </div>
+        <div className="container flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 md:px-8">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <Link to="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity">
+              <img src="/catalogix_logo1.png" alt="Catalogix" className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain" />
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-bold">Catalogix</h1>
+                <p className="text-xs text-muted-foreground">Dashboard</p>
+              </div>
+              <span className="sm:hidden text-lg font-bold">Catalogix</span>
+            </Link>
+            <nav className="hidden md:flex items-center gap-1">
+              <Link to="/" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
+                <Home className="h-4 w-4 inline-block mr-1" />
+                Home
+              </Link>
+              <Link to="/about" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
+                <Info className="h-4 w-4 inline-block mr-1" />
+                About
+              </Link>
+            </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <ApiSettings credentials={credentials} onSave={handleCredentialsSave} />
+            <button
+              className="md:hidden p-2 rounded-lg hover:bg-muted/50 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
+        
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden py-3 px-4 border-t border-border/50 bg-background animate-fade-in">
+            <div className="flex flex-col gap-1">
+              <Link
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+              >
+                <Home className="h-4 w-4" />
+                Home
+              </Link>
+              <Link
+                to="/about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+              >
+                <Info className="h-4 w-4" />
+                About
+              </Link>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Safety Banner */}
-      <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-3">
-        <div className="container flex items-center gap-3 text-amber-700 dark:text-amber-400">
-          <Shield className="w-5 h-5 flex-shrink-0" />
-          <p className="text-sm">
-            <strong>Safety Mode:</strong> All products are validated locally. Use "Dry Run" to preview the exact API payload before uploading.
+      <div className="bg-amber-500/10 border-b border-amber-500/30 px-3 sm:px-4 py-2 sm:py-3">
+        <div className="container flex items-start sm:items-center gap-2 sm:gap-3 text-amber-700 dark:text-amber-400">
+          <Shield className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5 sm:mt-0" />
+          <p className="text-xs sm:text-sm">
+            <strong>Safety Mode:</strong> <span className="hidden sm:inline">All products are validated locally. Use "Dry Run" to preview the exact API payload before uploading.</span><span className="sm:hidden">Products validated locally. Use Dry Run to preview.</span>
           </p>
         </div>
       </div>
 
       {/* Missing Settings Warning */}
       {!wingSettingsComplete && (
-        <div className="bg-red-500/10 border-b border-red-500/30 px-4 py-3">
-          <div className="container flex items-center gap-3 text-red-700 dark:text-red-400">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm">
-              <strong>Action Required:</strong> Wing settings are incomplete. Go to Settings tab to configure return location and shipping details.
+        <div className="bg-red-500/10 border-b border-red-500/30 px-3 sm:px-4 py-2 sm:py-3">
+          <div className="container flex items-start sm:items-center gap-2 sm:gap-3 text-red-700 dark:text-red-400">
+            <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5 sm:mt-0" />
+            <p className="text-xs sm:text-sm">
+              <strong>Action Required:</strong> <span className="hidden sm:inline">Wing settings are incomplete. Go to Settings tab to configure return location and shipping details.</span><span className="sm:hidden">Configure Wing settings first.</span>
             </p>
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <main className="container px-4 md:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="upload" className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Upload Products
+      <main className="container px-3 sm:px-4 md:px-8 py-4 sm:py-6 md:py-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2 h-auto">
+            <TabsTrigger value="upload" className="flex items-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-xs sm:text-sm">
+              <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Upload Products</span>
+              <span className="sm:hidden">Upload</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Wing Settings
+            <TabsTrigger value="settings" className="flex items-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-xs sm:text-sm">
+              <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Wing Settings</span>
+              <span className="sm:hidden">Settings</span>
               {!wingSettingsComplete && <span className="w-2 h-2 bg-red-500 rounded-full" />}
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="settings" className="space-y-6">
+          <TabsContent value="settings" className="space-y-4 sm:space-y-6">
             <WingSettingsForm 
               settings={wingSettings} 
               onSettingsChange={handleWingSettingsSave}
@@ -439,15 +486,15 @@ const Index = () => {
             />
           </TabsContent>
 
-          <TabsContent value="upload" className="space-y-8">
+          <TabsContent value="upload" className="space-y-4 sm:space-y-6 md:space-y-8">
             {/* Upload Section */}
             <section className="animate-fade-in">
-              <div className="glass-card p-6">
-                <h2 className="text-lg font-semibold mb-4">File Upload</h2>
+              <div className="glass-card p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">File Upload</h2>
                 <FileUpload onFileParsed={handleFileParsed} isProcessing={isLoadingAny} />
                 {fileName && (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    Current file: <span className="font-medium text-foreground">{fileName}</span>
+                  <p className="mt-2 sm:mt-3 text-xs sm:text-sm text-muted-foreground">
+                    Current file: <span className="font-medium text-foreground break-all">{fileName}</span>
                   </p>
                 )}
               </div>
@@ -473,60 +520,68 @@ const Index = () => {
             {/* Products Table */}
             {products.length > 0 && (
               <section className="animate-fade-in" style={{ animationDelay: '200ms' }}>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                <div className="flex flex-col gap-3 sm:gap-4 mb-4">
                   <div>
-                    <h2 className="text-lg font-semibold">Product List</h2>
-                    <p className="text-sm text-muted-foreground">
+                    <h2 className="text-base sm:text-lg font-semibold">Product List</h2>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       {selectedIds.size} selected ({selectedValidCount} ready for upload)
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={handleClear}>
-                      <RefreshCw className="w-4 h-4 mr-2" />
+                    <Button variant="outline" size="sm" onClick={handleClear} className="text-xs sm:text-sm">
+                      <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
                       Clear
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleExport}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Export Results
+                    <Button variant="outline" size="sm" onClick={handleExport} className="text-xs sm:text-sm">
+                      <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                      <span className="hidden sm:inline">Export Results</span>
+                      <span className="sm:hidden">Export</span>
                     </Button>
                     <Button 
                       variant="secondary"
                       size="sm" 
                       onClick={handleDryRun}
                       disabled={isLoadingAny || selectedValidCount === 0 || !credentials}
+                      className="text-xs sm:text-sm"
                     >
-                      <Play className="w-4 h-4 mr-2" />
-                      Dry Run
+                      <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                      <span className="hidden sm:inline">Dry Run</span>
+                      <span className="sm:hidden">Test</span>
                     </Button>
                     <Button 
                       size="sm" 
                       onClick={handleUploadClick}
                       disabled={isLoadingAny || selectedValidCount === 0 || !credentials || !wingSettingsComplete}
-                      className="gradient-primary text-primary-foreground"
+                      className="gradient-primary text-primary-foreground text-xs sm:text-sm"
                     >
-                      <Upload className="w-4 h-4 mr-2" />
-                      {isUploading ? 'Uploading...' : `Upload to Coupang (${selectedValidCount})`}
+                      <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
+                      <span className="hidden sm:inline">{isUploading ? 'Uploading...' : `Upload to Coupang (${selectedValidCount})`}</span>
+                      <span className="sm:hidden">{isUploading ? '...' : `Upload (${selectedValidCount})`}</span>
                     </Button>
                   </div>
                 </div>
-                <ProductTable 
-                  products={products} 
-                  selectedIds={selectedIds}
-                  onSelectionChange={setSelectedIds}
-                  onProductUpdate={handleProductUpdate}
-                  credentials={credentials}
-                />
+                <div className="overflow-x-auto -mx-3 sm:mx-0">
+                  <div className="min-w-[640px] sm:min-w-0 px-3 sm:px-0">
+                    <ProductTable 
+                      products={products} 
+                      selectedIds={selectedIds}
+                      onSelectionChange={setSelectedIds}
+                      onProductUpdate={handleProductUpdate}
+                      credentials={credentials}
+                    />
+                  </div>
+                </div>
               </section>
             )}
 
             {/* Empty State */}
             {products.length === 0 && (
-              <section className="text-center py-16 animate-fade-in">
-                <div className="w-20 h-20 mx-auto rounded-2xl bg-muted flex items-center justify-center mb-6">
-                  <Package className="w-10 h-10 text-muted-foreground" />
+              <section className="text-center py-10 sm:py-16 animate-fade-in">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-xl sm:rounded-2xl bg-muted flex items-center justify-center mb-4 sm:mb-6">
+                  <Package className="w-8 h-8 sm:w-10 sm:h-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Upload Your Product File</h3>
-                <p className="text-muted-foreground max-w-md mx-auto mb-4">
+                <h3 className="text-lg sm:text-xl font-semibold mb-2">Upload Your Product File</h3>
+                <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto mb-4 px-4">
                   Upload the XLSM or CSV file downloaded from Coupang WING. 
                   Products will be validated automatically before any upload attempts.
                 </p>
@@ -577,4 +632,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Dashboard;

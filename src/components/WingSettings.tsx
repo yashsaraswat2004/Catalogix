@@ -112,41 +112,43 @@ export function WingSettingsForm({ settings, onSettingsChange, credentials }: Wi
 
   return (
     <Card className="border-border/50">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Settings2 className="h-5 w-5" />
-              Wing Account Settings
+      <CardHeader className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Settings2 className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">Wing Account Settings</span>
             </CardTitle>
-            <CardDescription>
-              Configure your Coupang Wing return location and shipping settings. All fields are required for product upload.
+            <CardDescription className="text-xs sm:text-sm mt-1">
+              Configure your Coupang Wing return location and shipping settings.
             </CardDescription>
           </div>
           <Button
             variant="outline"
             onClick={handleFetchFromWing}
             disabled={isFetching || !hasValidCredentials}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto flex-shrink-0"
+            size="sm"
           >
             {isFetching ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Download className="h-4 w-4" />
             )}
-            Fetch from Wing
+            <span className="hidden sm:inline">Fetch from Wing</span>
+            <span className="sm:hidden">Fetch</span>
           </Button>
         </div>
         {!hasValidCredentials && (
-          <Alert className="mt-2 border-amber-500/50 bg-amber-500/10">
-            <Info className="h-4 w-4 text-amber-500" />
-            <AlertDescription className="text-amber-700 dark:text-amber-400">
+          <Alert className="mt-3 border-amber-500/50 bg-amber-500/10">
+            <Info className="h-4 w-4 text-amber-500 flex-shrink-0" />
+            <AlertDescription className="text-xs sm:text-sm text-amber-700 dark:text-amber-400">
               Save your API credentials first to auto-fetch Return Center and Shipping Place codes.
             </AlertDescription>
           </Alert>
         )}
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 pt-0 sm:pt-0">
         {!isComplete && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
