@@ -400,12 +400,12 @@ const Dashboard = () => {
         <div className="container flex h-14 sm:h-16 items-center justify-between px-3 sm:px-4 md:px-8">
           <div className="flex items-center gap-3 sm:gap-6">
             <Link to="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity">
-              <img src="/catalogix_logo1.png" alt="Catalogix" className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl object-contain" />
+              <img src="/nexcatalog_logo.png" alt="NexCatalog" className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain" />
               <div className="hidden sm:block">
-                <h1 className="text-lg font-bold">Catalogix</h1>
+                <h1 className="text-lg font-bold">NexCatalog</h1>
                 <p className="text-xs text-muted-foreground">Dashboard</p>
               </div>
-              <span className="sm:hidden text-lg font-bold">Catalogix</span>
+              <span className="sm:hidden text-lg font-bold">NexCatalog</span>
             </Link>
             <nav className="hidden md:flex items-center gap-1">
               <Link to="/" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">

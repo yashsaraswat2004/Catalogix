@@ -42,7 +42,7 @@ const About = () => {
     {
       year: '2025',
       title: 'Public Release',
-      description: 'Rebranded as Catalogix and released for all Coupang sellers worldwide.',
+      description: 'Rebranded as NexCatalog and released for all global marketplace sellers.',
     },
     {
       year: 'Future',
@@ -65,22 +65,22 @@ const About = () => {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6">
-              About <span className="text-gradient">Catalogix</span>
+              About <span className="text-gradient">NexCatalog</span>
             </h1>
             <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-6 sm:mb-8">
-              We're on a mission to simplify e-commerce product management for sellers 
-              targeting the Korean market. What started as an internal tool has grown 
-              into a powerful platform used by hundreds of sellers.
+              NexCatalog helps sellers, agencies, and enterprises scale product catalogs 
+              across global marketplaces using AI-driven automation, intelligent pricing, 
+              and seamless localization.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Link to="/dashboard">
                 <Button className="gradient-primary text-white">
                   <Package className="h-4 w-4 mr-2" />
-                  Try Catalogix
+                  Try NexCatalog
                 </Button>
               </Link>
               <a 
-                href="https://github.com/yashsaraswat2004/Catalogix" 
+                href="https://github.com/yashsaraswat2004/NexCatalog" 
                 target="_blank" 
                 rel="noopener noreferrer"
               >
@@ -107,7 +107,7 @@ const About = () => {
                 reaching the Korean market.
               </p>
               <p className="text-base sm:text-lg text-muted-foreground">
-                Catalogix bridges the gap between sellers and Coupang, Korea's largest 
+                NexCatalog bridges the gap between sellers and global marketplaces, enabling 
                 e-commerce platform, by providing an intuitive interface that handles 
                 all the technical complexity behind the scenes.
               </p>
@@ -203,12 +203,12 @@ const About = () => {
               Have Questions or Feedback?
             </h2>
             <p className="text-sm sm:text-base md:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
-              We'd love to hear from you! Whether you have questions about using Catalogix, 
+              We'd love to hear from you! Whether you have questions about using NexCatalog, 
               want to report a bug, or have suggestions for new features.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
               <a 
-                href="https://github.com/yashsaraswat2004/Catalogix/issues" 
+                href="https://github.com/yashsaraswat2004/NexCatalog/issues" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="w-full sm:w-auto"
@@ -233,17 +233,17 @@ const About = () => {
       <footer className="py-8 sm:py-12 bg-background border-t border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center gap-6 text-center md:flex-row md:justify-between md:text-left">
-            <div className="flex items-center gap-2">
-              <img src="/catalogix_logo1.png" alt="Catalogix" className="h-8 w-auto" />
-              <span className="text-xl font-bold">Catalogix</span>
+            <div className="flex items-center gap-3">
+              <img src="/nexcatalog_logo.png" alt="NexCatalog" className="h-10 w-auto" />
+              <span className="text-xl font-bold">NexCatalog</span>
             </div>
             <div className="flex flex-wrap justify-center gap-4 sm:gap-8 text-muted-foreground text-sm">
               <Link to="/" className="hover:text-foreground transition-colors">Home</Link>
               <Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link>
-              <a href="https://github.com/yashsaraswat2004/Catalogix" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a>
+              <a href="https://github.com/yashsaraswat2004/NexCatalog" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a>
             </div>
             <div className="text-muted-foreground text-xs sm:text-sm">
-              © {new Date().getFullYear()} Catalogix. All rights reserved.
+              © {new Date().getFullYear()} NexCatalog. All rights reserved.
             </div>
           </div>
         </div>

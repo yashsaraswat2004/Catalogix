@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { Eye, EyeOff, LogIn, Loader2, ArrowLeft, Package } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Login = () => {
@@ -50,11 +50,9 @@ const Login = () => {
           </Link>
 
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Package className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold">Catalogix</span>
+          <div className="flex items-center gap-4 mb-8">
+            <img src="/nexcatalog_logo.png" alt="NexCatalog" className="w-14 h-14 rounded-xl object-contain" />
+            <span className="text-3xl font-bold">NexCatalog</span>
           </div>
 
           {/* Heading */}
@@ -140,7 +138,7 @@ const Login = () => {
         <div className="flex flex-col justify-center px-12 relative z-10">
           <blockquote className="text-white">
             <p className="text-2xl font-medium mb-6 leading-relaxed">
-              "Catalogix transformed how I manage my Coupang store. What used to take hours now takes minutes."
+              "NexCatalog transformed how I manage my global marketplace listings. What used to take hours now takes minutes."
             </p>
             <footer className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold">

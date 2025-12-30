@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/contexts/AuthContext';
-import { Eye, EyeOff, UserPlus, Loader2, ArrowLeft, Package, CheckCircle2 } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const Signup = () => {
@@ -102,11 +102,9 @@ const Signup = () => {
           </Link>
 
           {/* Logo */}
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <Package className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold">Catalogix</span>
+          <div className="flex items-center gap-4 mb-8">
+            <img src="/nexcatalog_logo.png" alt="NexCatalog" className="w-14 h-14 rounded-xl object-contain" />
+            <span className="text-3xl font-bold">NexCatalog</span>
           </div>
 
           {/* Heading */}

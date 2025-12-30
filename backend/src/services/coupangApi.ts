@@ -2,6 +2,47 @@ import { generateHmacSignature } from './hmacSignature';
 
 const COUPANG_API_BASE = 'https://api-gateway.coupang.com';
 
+/**
+ * Validate and clean barcode value
+ * Coupang only accepts standard barcode formats:
+ * - EAN-13 (13 digits)
+ * - EAN-8 (8 digits)
+ * - UPC-A (12 digits)
+ * - JAN (8 or 13 digits)
+ * - GTIN-14 (14 digits)
+ * Amazon ASINs are NOT valid barcodes for Coupang!
+ */
+function cleanBarcode(barcode: string | undefined | null): string {
+  if (!barcode || typeof barcode !== 'string') {
+    return '';
+  }
+
+  const trimmed = barcode.trim();
+  
+  // If it's a URL (Amazon or otherwise), we cannot use it as barcode
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.includes('amazon.')) {
+    console.log(`[Barcode] URL detected, setting to empty (Coupang requires standard barcode formats): ${trimmed.substring(0, 50)}...`);
+    return '';
+  }
+
+  // Validate barcode: must be numeric and proper length for standard formats
+  // EAN-8: 8 digits, UPC-A: 12 digits, EAN-13/JAN: 13 digits, GTIN-14: 14 digits
+  if (/^\d{8}$/.test(trimmed) || /^\d{12}$/.test(trimmed) || /^\d{13}$/.test(trimmed) || /^\d{14}$/.test(trimmed)) {
+    console.log(`[Barcode] Valid standard barcode format: ${trimmed}`);
+    return trimmed;
+  }
+
+  // Also accept shorter numeric codes (some products have 6-7 digit codes)
+  if (/^\d{6,14}$/.test(trimmed)) {
+    console.log(`[Barcode] Numeric barcode accepted: ${trimmed}`);
+    return trimmed;
+  }
+
+  // Reject non-standard formats (including ASINs like B0FSL81J9S)
+  console.log(`[Barcode] Invalid format rejected (not a standard numeric barcode): ${trimmed}`);
+  return '';
+}
+
 export function extractDisplayCategoryCode(category: any): number {
   if (!category) return 0;
   const parts = String(category).split('>');
@@ -416,7 +457,17 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   const attributes: any[] = [];
   const usedAttrNames = new Set<string>();
   
-  const attributeTypeMetas = meta?.attributeTypeMetas || [];
+  // Debug: Log the meta structure to understand what we're receiving
+  console.log(`[Attributes] Meta keys: ${meta ? Object.keys(meta).join(', ') : 'null'}`);
+  
+  // Try different possible paths for attributeTypeMetas
+  const attributeTypeMetas = meta?.attributeTypeMetas || meta?.data?.attributeTypeMetas || [];
+  
+  console.log(`[Attributes] Raw attributeTypeMetas count: ${attributeTypeMetas.length}`);
+  if (attributeTypeMetas.length > 0) {
+    console.log(`[Attributes] First attr sample: ${JSON.stringify(attributeTypeMetas[0]).substring(0, 200)}`);
+  }
+  
   const bundleGroups = new Map<number, any[]>();
   const mandatoryAttributes: any[] = [];
   
@@ -512,6 +563,27 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
       attributeValueName: qtyValue
     });
     console.log(`[Attributes] Added default 수량=${qtyValue}`);
+  }
+  
+  // FALLBACK: For categories that require 수량, 개당 중량, 개당 용량 (like shampoo/cosmetics)
+  // Add these mandatory attributes if not already present
+  const requiredFallbackAttrs = [
+    { name: '수량', value: '1개' },
+    { name: '개당 중량', value: '상세페이지 참조' },
+    { name: '개당 용량', value: extractVolumeFromText(productName) || '상세페이지 참조' }
+  ];
+  
+  for (const fallback of requiredFallbackAttrs) {
+    const hasAttr = attributes.some(a => 
+      a.attributeTypeName === fallback.name
+    );
+    if (!hasAttr) {
+      attributes.push({
+        attributeTypeName: fallback.name,
+        attributeValueName: fallback.value
+      });
+      console.log(`[Attributes] Fallback added: ${fallback.name}=${fallback.value}`);
+    }
   }
   
   console.log(`[Attributes] Final attributes count: ${attributes.length}`);
@@ -645,6 +717,9 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
   
   console.log(`[Overseas Check] Country: ${wingSettings.countryCode}, Product overseas flag: ${product.overseasPurchase}, Final overseas: ${isOverseasProduct}`);
   
+  // Clean and validate barcode - extracts ASIN from Amazon URLs or validates format
+  const validBarcode = cleanBarcode(product.barcode);
+  
   const item: any = {
     itemName: (product.productName || "Product").substring(0, 150),
     originalPrice: Math.round(product.discountBasePrice || product.salePrice || 0),
@@ -660,9 +735,9 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     overseasPurchased: isOverseasProduct ? "OVERSEAS_PURCHASED" : "NOT_OVERSEAS_PURCHASED",
     pccNeeded: isOverseasProduct,
     externalVendorSku: product.vendorProductCode || "",
-    barcode: product.barcode || "",
-    emptyBarcode: !product.barcode,
-    emptyBarcodeReason: !product.barcode ? "상품확인불가_바코드없음사유" : "",
+    barcode: validBarcode,
+    emptyBarcode: !validBarcode,
+    emptyBarcodeReason: !validBarcode ? "상품확인불가_바코드없음사유" : "",
     modelNo: product.modelNumber || "",
     certifications: certifications,
     searchTags: searchTags,

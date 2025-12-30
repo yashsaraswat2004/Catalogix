@@ -63,7 +63,7 @@ const NotFound = () => {
       {/* Footer */}
       <footer className="py-6 border-t border-border">
         <div className="text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} Catalogix. All rights reserved.
+          © {new Date().getFullYear()} NexCatalog. All rights reserved.
         </div>
       </footer>
     </div>

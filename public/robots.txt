@@ -1,5 +1,5 @@
-# Catalogix - Robots.txt
-# https://catalogix.app
+# NexCatalog - Robots.txt
+# https://nexcatalog.com
 
 User-agent: *
 Allow: /
@@ -7,7 +7,7 @@ Disallow: /dashboard
 Disallow: /api/
 
 # Sitemap
-Sitemap: https://catalogix.app/sitemap.xml
+Sitemap: https://nexcatalog.com/sitemap.xml
 
 # Crawl-delay for politeness
 Crawl-delay: 1

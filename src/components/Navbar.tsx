@@ -34,9 +34,9 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <img src="/catalogix_logo1.png" alt="Catalogix" className="h-8 w-auto" />
-            <span className="text-xl font-bold text-gradient">Catalogix</span>
+          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <img src="/nexcatalog_logo.png" alt="NexCatalog" className="h-16 w-auto" />
+            <span className="text-xl font-bold text-gradient">NexCatalog</span>
           </Link>
 
           {/* Desktop Navigation */}

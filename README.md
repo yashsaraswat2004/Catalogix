@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/catalogix_logo1.png" alt="Catalogix Logo" width="120" />
+  <img src="public/nexcatalog_logo.png" alt="NexCatalog Logo" width="120" />
 </p>
 
 <p align="center">
@@ -10,11 +10,11 @@
   <img src="https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Tailwind" />
 </p>
 
-<h1 align="center">Catalogix</h1>
+<h1 align="center">NexCatalog</h1>
 
 <p align="center">
-  <strong>Enterprise Bulk Product Management Platform</strong><br/>
-  <em>Effortless Bulk Product Uploads Across Global Marketplaces</em>
+  <strong>AI-Powered Platform for Listings, Pricing, and Localization</strong><br/>
+  <em>NexCatalog helps sellers, agencies, and enterprises scale product catalogs across global marketplaces using AI-driven automation, intelligent pricing, and seamless localization.</em>
 </p>
 
 <p align="center">
@@ -44,11 +44,11 @@
 
 ## 🎯 Introduction
 
-**Catalogix** is an enterprise-grade bulk product management platform designed to simplify and automate product listing across global e-commerce marketplaces.
+**NexCatalog** is an AI-powered platform designed to help sellers, agencies, and enterprises scale product catalogs across global marketplaces using intelligent automation, dynamic pricing, and seamless localization.
 
 The platform addresses one of the most critical challenges in cross-border commerce: converting supplier product data into marketplace-ready listings while handling language localization, category compliance, pricing logic, and marketplace-specific API requirements.
 
-Catalogix is currently under active development. The first phase, focused on bulk product uploads, has been successfully implemented and is operational. Subsequent phases will introduce advanced pricing automation, analytics, and multi-marketplace expansion.
+NexCatalog is currently under active development. The first phase, focused on bulk product uploads, has been successfully implemented and is operational. Subsequent phases will introduce advanced pricing automation, analytics, and multi-marketplace expansion.
 
 ---
 
@@ -61,7 +61,7 @@ Global e-commerce marketplaces operate with significantly different technical, r
 - ⚙️ Operational complexity for sellers
 - 💰 High costs of regional onboarding
 
-Catalogix bridges this gap by enabling sellers, agencies, and enterprises to scale their product catalogs across regions without rebuilding their workflows for each marketplace.
+NexCatalog bridges this gap by enabling sellers, agencies, and enterprises to scale their product catalogs across regions without rebuilding their workflows for each marketplace.
 
 The initial implementation uses **Coupang** (South Korea's largest e-commerce platform) as a reference marketplace due to its strict API requirements and non-English content standards. Solving for this complexity establishes a strong technical foundation for expansion into other marketplaces such as Ozon and additional regional platforms.
 
@@ -71,7 +71,7 @@ The initial implementation uses **Coupang** (South Korea's largest e-commerce pl
 
 ### Traditional Marketplace Upload Challenges
 
-| Challenge | Manual Process | With Catalogix |
+| Challenge | Manual Process | With NexCatalog |
 |-----------|---------------|----------------|
 | **Time per Product** | 15-30 minutes | < 1 second |
 | **Bulk Upload (100 products)** | 25-50 hours | 5-10 minutes |
@@ -253,7 +253,7 @@ The initial implementation uses **Coupang** (South Korea's largest e-commerce pl
 
 ### Current State: AI-Assisted Automation
 
-Catalogix currently uses AI as an automation and decision-support layer for:
+NexCatalog currently uses AI as an automation and decision-support layer for:
 
 - 🌐 Language translation (English → Korean)
 - 🏷️ Category recommendation
@@ -264,14 +264,14 @@ Human review remains part of the workflow where required.
 
 ### Future Direction: Agentic AI
 
-Catalogix is designed to evolve into an agentic AI-driven platform. In future phases, AI agents will:
+NexCatalog is designed to evolve into an agentic AI-driven platform. In future phases, AI agents will:
 
 - 📈 Analyze product and marketplace data
 - 💰 Recommend optimal pricing and listing strategies
 - 🔄 Execute multi-step workflows autonomously
 - 🧠 Learn continuously from upload outcomes and errors
 
-This evolution will transform Catalogix from a bulk upload system into an intelligent commerce orchestration layer.
+This evolution will transform NexCatalog from a bulk upload system into an intelligent commerce orchestration layer.
 
 ---
 
@@ -375,8 +375,8 @@ This evolution will transform Catalogix from a bulk upload system into an intell
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/frostrek/catalogix.git
-cd catalogix
+git clone https://github.com/frostrek/nexcatalog.git
+cd nexcatalog
 ```
 
 #### 2. Setup Backend
@@ -392,7 +392,7 @@ Edit `.env`:
 ```env
 PORT=3001
 NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/catalogix
+MONGODB_URI=mongodb://localhost:27017/nexcatalog
 GEMINI_API_KEY=your_gemini_api_key
 CORS_ORIGIN=http://localhost:5173
 ```
@@ -438,7 +438,7 @@ Create a `.env.production` file:
 
 ```env
 VITE_API_URL=https://your-backend-url.com
-VITE_APP_URL=https://catalogix.app
+VITE_APP_URL=https://nexcatalog.com
 ```
 
 #### 3. Deploy to Vercel
@@ -471,9 +471,9 @@ npm run build  # If using TypeScript compilation
 ```env
 PORT=3001
 NODE_ENV=production
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/catalogix
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/nexcatalog
 GEMINI_API_KEY=your_production_gemini_key
-CORS_ORIGIN=https://catalogix.app
+CORS_ORIGIN=https://nexcatalog.com
 ```
 
 #### 3. Deploy to Railway

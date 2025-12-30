@@ -1,8 +1,8 @@
 {
-  "name": "catalogix",
+  "name": "nexcatalog",
   "private": true,
   "version": "1.0.0",
-  "description": "Bulk upload products to Coupang with AI-powered translation",
+  "description": "AI-Powered Platform for Listings, Pricing, and Localization",
   "type": "module",
   "scripts": {
     "dev": "vite",

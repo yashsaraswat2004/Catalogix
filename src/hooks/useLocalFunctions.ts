@@ -4,7 +4,8 @@
 import config from '@/lib/config';
 
 // Backend URL - Uses environment variable or falls back to localhost
-const BACKEND_URL = `${config.apiUrl}/api`;
+// config.apiUrl already includes /api, so no need to add it again
+const BACKEND_URL = config.apiUrl;
 
 export async function invokeFunction(functionName: string, body: any) {
   // Map edge function names to Express endpoints

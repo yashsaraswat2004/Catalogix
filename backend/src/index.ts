@@ -162,7 +162,7 @@ app.get('/health', (req: Request, res: Response) => {
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
   res.json({
-    name: 'Catalogix Backend',
+    name: 'NexCatalog Backend',
     version: '1.0.0',
     status: 'running',
     endpoints: {

@@ -6,8 +6,8 @@ export const config = {
   apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
   
   // App Configuration
-  appName: import.meta.env.VITE_APP_NAME || 'Catalogix',
-  appUrl: import.meta.env.VITE_APP_URL || 'https://catalogix.app',
+  appName: import.meta.env.VITE_APP_NAME || 'NexCatalog',
+  appUrl: import.meta.env.VITE_APP_URL || 'https://nexcatalog.com',
   
   // Environment
   isDevelopment: import.meta.env.DEV,
