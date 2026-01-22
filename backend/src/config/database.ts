@@ -5,9 +5,9 @@ export async function connectDatabase(): Promise<void> {
   
   try {
     await mongoose.connect(mongoUri);
-    console.log('✅ Connected to MongoDB');
+    console.log('Connected to MongoDB');
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error);
+    console.error('MongoDB connection error:', error);
     // Don't exit - allow server to run without DB for stateless operations
     console.log('⚠️ Continuing without database connection...');
   }

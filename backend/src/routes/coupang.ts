@@ -7,7 +7,8 @@ import {
   fetchShippingCenters,
   fetchDisplayCategoryStatus,
   fetchCategoryRelatedMeta,
-  recommendCategory
+  recommendCategory,
+  getCategoryRequiredAttributes
 } from '../services/coupangApi';
 import { generateHmacSignature } from '../services/hmacSignature';
 
@@ -15,7 +16,8 @@ const router = Router();
 
 const VALID_ACTIONS = [
   'validate', 'upload', 'validate-products', 'test-signature',
-  'fetch-shipping-centers', 'recommend-category', 'validate-category', 'fetch-category-meta'
+  'fetch-shipping-centers', 'recommend-category', 'validate-category', 
+  'fetch-category-meta', 'get-required-attributes'
 ];
 
 function sanitizeString(str: any): string {
@@ -295,6 +297,55 @@ router.post('/', async (req: Request, res: Response) => {
           return res.status(500).json({ 
             success: false, 
             error: err instanceof Error ? err.message : 'Failed to fetch category metadata' 
+          });
+        }
+      }
+
+      case 'get-required-attributes': {
+        if (!reqCategoryCode) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Please enter a category code.' 
+          });
+        }
+
+        const categoryCodeNum = parseInt(reqCategoryCode);
+        if (isNaN(categoryCodeNum) || categoryCodeNum <= 0) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Invalid category code. Please enter a valid numeric category code.' 
+          });
+        }
+
+        const result = await getCategoryRequiredAttributes(categoryCodeNum, accessKey, secretKey);
+        
+        if (result.success) {
+          const mandatory = result.attributes?.filter((a: any) => a.required) || [];
+          const optional = result.attributes?.filter((a: any) => !a.required) || [];
+          
+          let message = '';
+          if (result.message) {
+            message = result.message;
+          } else if (mandatory.length === 0) {
+            message = `Category ${reqCategoryCode} has no mandatory attributes.`;
+          } else {
+            message = `Category ${reqCategoryCode} requires ${mandatory.length} mandatory attribute${mandatory.length > 1 ? 's' : ''}.`;
+          }
+          
+          return res.json({ 
+            success: true, 
+            categoryCode: reqCategoryCode,
+            mandatoryAttributes: mandatory,
+            optionalAttributes: optional,
+            totalMandatory: mandatory.length,
+            totalOptional: optional.length,
+            message
+          });
+        } else {
+          // Return 400 for client errors, not 500
+          return res.status(400).json({ 
+            success: false, 
+            error: result.error || 'Unable to fetch category information.'
           });
         }
       }

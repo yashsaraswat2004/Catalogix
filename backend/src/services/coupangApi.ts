@@ -128,8 +128,70 @@ export async function fetchCategoryRelatedMeta(
   const json = JSON.parse(responseText);
   const meta = Array.isArray(json?.data) ? json.data[0] : json?.data;
 
+  // Log detailed attribute information
+  if (meta?.attributeTypeMetas) {
+    const mandatory = meta.attributeTypeMetas.filter((a: any) => a.required === 'MANDATORY');
+    console.log(`[CategoryMeta] Category ${displayCategoryCode} has ${mandatory.length} mandatory attributes:`);
+    mandatory.forEach((attr: any) => {
+      const hasValues = attr.attributeValueMetas?.length > 0;
+      const valuesInfo = hasValues ? ` (${attr.attributeValueMetas.length} predefined values)` : ' (free text)';
+      console.log(`  - ${attr.attributeTypeName} [group:${attr.groupNumber || 0}]${valuesInfo}`);
+    });
+  }
+
   cache.set(displayCategoryCode, meta);
   return meta;
+}
+
+// New: Fetch and return required attributes for a category (for preview/debugging)
+export async function getCategoryRequiredAttributes(
+  displayCategoryCode: number,
+  accessKey: string,
+  secretKey: string
+): Promise<{ success: boolean; attributes?: any[]; message?: string; error?: string }> {
+  try {
+    const cache = new Map<number, any>();
+    const meta = await fetchCategoryRelatedMeta(displayCategoryCode, accessKey, secretKey, cache);
+    
+    // If no meta returned at all, category might not exist
+    if (!meta) {
+      return { 
+        success: false, 
+        error: `Category ${displayCategoryCode} not found. Please verify the category code is correct.`
+      };
+    }
+    
+    // If category exists but has no attribute metadata, return success with empty list
+    if (!meta.attributeTypeMetas || meta.attributeTypeMetas.length === 0) {
+      console.log(`[CategoryMeta] Category ${displayCategoryCode} exists but has no attribute metadata`);
+      return { 
+        success: true, 
+        attributes: [],
+        message: 'This category has no specific attribute requirements.'
+      };
+    }
+    
+    const attributes = meta.attributeTypeMetas.map((attr: any) => ({
+      name: attr.attributeTypeName,
+      required: attr.required === 'MANDATORY',
+      groupNumber: attr.groupNumber || 0,
+      dataType: attr.dataType,
+      usableUnits: attr.usableUnits || [],
+      predefinedValues: (attr.attributeValueMetas || []).map((v: any) => v.attributeValueName)
+    }));
+    
+    return { success: true, attributes };
+  } catch (error: any) {
+    // Provide more descriptive error messages
+    const errorMsg = error.message || 'Unknown error';
+    if (errorMsg.includes('404') || errorMsg.includes('not found')) {
+      return { success: false, error: `Category ${displayCategoryCode} not found. Please check the category code.` };
+    }
+    if (errorMsg.includes('401') || errorMsg.includes('403') || errorMsg.includes('unauthorized')) {
+      return { success: false, error: 'API authentication failed. Please verify your credentials.' };
+    }
+    return { success: false, error: `Failed to fetch category data: ${errorMsg}` };
+  }
 }
 
 function getAutoNoticeContent(detailName: string, product: any, wingSettings: any): string {
@@ -1178,6 +1240,241 @@ export async function recommendCategory(
     return {
       success: false,
       error: result?.comment || 'Could not determine category. Please provide more detailed product information.'
+    };
+  }
+}
+
+// ============================================
+// REPRICING API FUNCTIONS
+// ============================================
+
+/**
+ * Fetch product inventory details (including current price)
+ * GET /v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/{vendorItemId}/inventories
+ */
+export async function fetchVendorItemInventory(
+  vendorItemId: string,
+  accessKey: string,
+  secretKey: string
+): Promise<{
+  success: boolean;
+  price?: number;
+  quantity?: number;
+  status?: string;
+  error?: string;
+}> {
+  const method = 'GET';
+  const path = `/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/${vendorItemId}/inventories`;
+  const query = '';
+
+  console.log('[FetchInventory] Fetching inventory for vendorItemId:', vendorItemId);
+
+  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
+
+  try {
+    const response = await fetch(`${COUPANG_API_BASE}${path}`, {
+      method,
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json;charset=UTF-8'
+      }
+    });
+
+    const responseText = await response.text();
+    console.log('[FetchInventory] Response:', response.status, responseText.slice(0, 500));
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+        error: `Failed to fetch inventory: HTTP ${response.status} - ${responseText.slice(0, 200)}`
+      };
+    }
+
+    const data = JSON.parse(responseText);
+
+    // Parse Coupang response structure
+    // Expected structure: { code: 'SUCCESS', data: { price: number, quantity: number, ... } }
+    if (data?.code === 'SUCCESS' && data?.data) {
+      const inventoryData = data.data;
+      return {
+        success: true,
+        price: inventoryData.originalPrice || inventoryData.salePrice || inventoryData.price,
+        quantity: inventoryData.quantity,
+        status: inventoryData.status
+      };
+    } else {
+      return {
+        success: false,
+        error: data?.message || 'Invalid response format from Coupang API'
+      };
+    }
+  } catch (error) {
+    console.error('[FetchInventory] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error fetching inventory'
+    };
+  }
+}
+
+/**
+ * Update price for a vendor item
+ * PUT /v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/{vendorItemId}/prices/{price}
+ */
+export async function updateVendorItemPrice(
+  vendorItemId: string,
+  newPrice: number,
+  accessKey: string,
+  secretKey: string
+): Promise<{
+  success: boolean;
+  updatedPrice?: number;
+  error?: string;
+}> {
+  // Validate price is a positive integer
+  if (!Number.isInteger(newPrice) || newPrice <= 0) {
+    return {
+      success: false,
+      error: `Invalid price: ${newPrice}. Price must be a positive integer.`
+    };
+  }
+
+  const method = 'PUT';
+  const path = `/v2/providers/seller_api/apis/api/v1/marketplace/vendor-items/${vendorItemId}/prices/${newPrice}`;
+  const query = '';
+
+  console.log('[UpdatePrice] Updating price for vendorItemId:', vendorItemId, 'New price:', newPrice);
+
+  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
+
+  try {
+    const response = await fetch(`${COUPANG_API_BASE}${path}`, {
+      method,
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json;charset=UTF-8'
+      }
+    });
+
+    const responseText = await response.text();
+    console.log('[UpdatePrice] Response:', response.status, responseText.slice(0, 500));
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+        error: `Failed to update price: HTTP ${response.status} - ${responseText.slice(0, 200)}`
+      };
+    }
+
+    const data = JSON.parse(responseText);
+
+    if (data?.code === 'SUCCESS') {
+      return {
+        success: true,
+        updatedPrice: newPrice
+      };
+    } else {
+      return {
+        success: false,
+        error: data?.message || 'Price update failed'
+      };
+    }
+  } catch (error) {
+    console.error('[UpdatePrice] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error updating price'
+    };
+  }
+}
+
+/**
+ * Fetch seller's product list with pagination
+ * GET /v2/providers/seller_api/apis/api/v1/marketplace/seller-products
+ * 
+ * This can be used to resolve sellerProductId to vendorItemId
+ */
+export async function fetchSellerProducts(
+  accessKey: string,
+  secretKey: string,
+  options?: {
+    sellerProductId?: string;
+    page?: number;
+    size?: number;
+  }
+): Promise<{
+  success: boolean;
+  products?: Array<{
+    sellerProductId: string;
+    vendorItemId: string;
+    itemId: string;
+    productName: string;
+    status?: string;
+  }>;
+  totalCount?: number;
+  error?: string;
+}> {
+  const method = 'GET';
+  const path = '/v2/providers/seller_api/apis/api/v1/marketplace/seller-products';
+  
+  // Build query string
+  const params = new URLSearchParams();
+  if (options?.sellerProductId) params.append('sellerProductId', options.sellerProductId);
+  if (options?.page) params.append('page', options.page.toString());
+  if (options?.size) params.append('size', options.size.toString());
+  
+  const query = params.toString() ? `?${params.toString()}` : '';
+
+  console.log('[FetchSellerProducts] Query:', query || '(no filters)');
+
+  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
+
+  try {
+    const response = await fetch(`${COUPANG_API_BASE}${path}${query}`, {
+      method,
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json;charset=UTF-8'
+      }
+    });
+
+    const responseText = await response.text();
+    console.log('[FetchSellerProducts] Response:', response.status, responseText.slice(0, 500));
+
+    if (response.status !== 200) {
+      return {
+        success: false,
+        error: `Failed to fetch products: HTTP ${response.status} - ${responseText.slice(0, 200)}`
+      };
+    }
+
+    const data = JSON.parse(responseText);
+
+    if (data?.code === 'SUCCESS' && data?.data) {
+      const productList = Array.isArray(data.data.content) ? data.data.content : [];
+      
+      return {
+        success: true,
+        products: productList.map((p: any) => ({
+          sellerProductId: p.sellerProductId,
+          vendorItemId: p.vendorItemId,
+          itemId: p.itemId,
+          productName: p.productName || p.name,
+          status: p.status
+        })),
+        totalCount: data.data.totalElements || productList.length
+      };
+    } else {
+      return {
+        success: false,
+        error: data?.message || 'Invalid response format'
+      };
+    }
+  } catch (error) {
+    console.error('[FetchSellerProducts] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error fetching products'
     };
   }
 }

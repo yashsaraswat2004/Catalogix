@@ -10,6 +10,7 @@ import { connectDatabase } from './config/database';
 import coupangRoutes from './routes/coupang';
 import translateRoutes from './routes/translate';
 import authRoutes from './routes/auth';
+import repricingRoutes from './routes/repricing';
 
 dotenv.config();
 
@@ -144,6 +145,7 @@ if (NODE_ENV === 'development') {
 app.use('/api/auth', authRoutes);
 app.use('/api/coupang', coupangRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/repricing', repricingRoutes);
 
 // Health check - Enhanced
 app.get('/health', (req: Request, res: Response) => {
@@ -228,15 +230,15 @@ async function startServer() {
     await connectDatabase();
     
     server = app.listen(PORT, () => {
-      console.log(`\n🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📦 Environment: ${NODE_ENV}`);
-      console.log(`� Auth API: http://localhost:${PORT}/api/auth`);
-      console.log(`�📦 Coupang API: http://localhost:${PORT}/api/coupang`);
-      console.log(`🌐 Translate API: http://localhost:${PORT}/api/translate`);
-      console.log(`💚 Health Check: http://localhost:${PORT}/health\n`);
+      console.log(`\n Server running on http://localhost:${PORT}`);
+      console.log(` Environment: ${NODE_ENV}`);
+      console.log(` Auth API: http://localhost:${PORT}/api/auth`);
+      console.log(` Coupang API: http://localhost:${PORT}/api/coupang`);
+      console.log(` Translate API: http://localhost:${PORT}/api/translate`);
+      console.log(` Health Check: http://localhost:${PORT}/health\n`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error(' Failed to start server:', error);
     process.exit(1);
   }
 }

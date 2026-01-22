@@ -22,6 +22,7 @@ const Navbar = () => {
     { path: '/', label: 'Home' },
     { path: '/about', label: 'About' },
     { path: '/dashboard', label: 'Dashboard' },
+    { path: '/repricing', label: 'Repricing' },
   ];
 
   const handleLogout = async () => {

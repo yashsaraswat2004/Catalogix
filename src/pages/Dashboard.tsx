@@ -6,11 +6,12 @@ import { ApiSettings } from '@/components/ApiSettings';
 import { WingSettingsForm } from '@/components/WingSettings';
 import { StatsCards } from '@/components/StatsCards';
 import { UploadProgress } from '@/components/UploadProgress';
+import { CategoryAttributeLookup } from '@/components/CategoryAttributeLookup';
 import { ParsedProduct, CoupangApiCredentials, WingSettings, REQUIRED_WING_SETTINGS } from '@/types/coupang';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useCoupangApi, UploadResult } from '@/hooks/useCoupangApi';
-import { Upload, Download, RefreshCw, Package, Shield, AlertTriangle, CheckCircle2, Play, Settings, Home, Info, Menu, X, LogOut, User } from 'lucide-react';
+import { Upload, Download, RefreshCw, Package, Shield, AlertTriangle, CheckCircle2, Play, Settings, Home, Info, Menu, X, LogOut, User, Layers, DollarSign } from 'lucide-react';
 import { exportToXlsx } from '@/lib/xlsxParser';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -416,6 +417,10 @@ const Dashboard = () => {
                 <Info className="h-4 w-4 inline-block mr-1" />
                 About
               </Link>
+              <Link to="/repricing" className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
+                <DollarSign className="h-4 w-4 inline-block mr-1" />
+                Repricing
+              </Link>
             </nav>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
@@ -530,7 +535,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="container px-3 sm:px-4 md:px-8 py-4 sm:py-6 md:py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2 h-auto">
+          <TabsList className="grid w-full max-w-lg grid-cols-3 h-auto">
             <TabsTrigger value="upload" className="flex items-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-xs sm:text-sm">
               <Upload className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Upload Products</span>
@@ -542,17 +547,14 @@ const Dashboard = () => {
               <span className="sm:hidden">Settings</span>
               {!wingSettingsComplete && <span className="w-2 h-2 bg-red-500 rounded-full" />}
             </TabsTrigger>
+            <TabsTrigger value="category" className="flex items-center gap-1.5 sm:gap-2 py-2.5 sm:py-3 text-xs sm:text-sm">
+              <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Category Lookup</span>
+              <span className="sm:hidden">Category</span>
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="settings" className="space-y-4 sm:space-y-6">
-            <WingSettingsForm 
-              settings={wingSettings} 
-              onSettingsChange={handleWingSettingsSave}
-              credentials={credentials || undefined}
-            />
-          </TabsContent>
-
-          <TabsContent value="upload" className="space-y-4 sm:space-y-6 md:space-y-8">
+          <TabsContent value="upload" className="space-y-4 sm:space-y-6">
             {/* Upload Section */}
             <section className="animate-fade-in">
               <div className="glass-card p-4 sm:p-6">
@@ -661,6 +663,18 @@ const Dashboard = () => {
                 )}
               </section>
             )}
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-4 sm:space-y-6">
+            <WingSettingsForm 
+              settings={wingSettings} 
+              onSettingsChange={handleWingSettingsSave}
+              credentials={credentials || undefined}
+            />
+          </TabsContent>
+
+          <TabsContent value="category" className="space-y-4 sm:space-y-6">
+            <CategoryAttributeLookup credentials={credentials} />
           </TabsContent>
         </Tabs>
       </main>
