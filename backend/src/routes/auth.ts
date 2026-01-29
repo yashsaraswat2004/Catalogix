@@ -265,6 +265,12 @@ router.post('/forgotpassword', authLimiter, forgotPasswordValidation, async (req
       <p>This link is valid for 10 minutes.</p>
     `;
 
+    // DEBUG: Log the reset URL so we can see it in Render logs if email fails
+    console.log('================================================================');
+    console.log('🔗 PASSWORD RESET LINK (Copy this if email fails):');
+    console.log(resetUrl);
+    console.log('================================================================');
+
     try {
       await sendEmail({
         email: user.email,
