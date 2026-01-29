@@ -1,6 +1,74 @@
 import { generateHmacSignature } from './hmacSignature';
 
 const COUPANG_API_BASE = 'https://api-gateway.coupang.com';
+const COUPANG_PROXY_URL = process.env.COUPANG_PROXY_URL;
+const COUPANG_PROXY_SECRET = process.env.COUPANG_PROXY_SECRET;
+
+/**
+ * Unified helper to call Coupang API
+ * Routes request through Proxy if configured, otherwise calls directly.
+ */
+async function callCoupangApi(
+  method: string,
+  path: string,
+  query: string,
+  accessKey: string,
+  secretKey: string,
+  body: any = null
+): Promise<Response> {
+  // Option 1: Use Proxy (checking if configured)
+  if (COUPANG_PROXY_URL) {
+    // console.log(`[API] Routing via Proxy: ${COUPANG_PROXY_URL}`); // Optional logging
+
+    const proxyPayload = {
+      method,
+      path,
+      query,
+      body
+    };
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+
+    if (COUPANG_PROXY_SECRET) {
+      headers['x-proxy-secret'] = COUPANG_PROXY_SECRET;
+    }
+
+    try {
+      const response = await fetch(`${COUPANG_PROXY_URL}/proxy`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(proxyPayload)
+      });
+      return response;
+    } catch (error) {
+      console.error('[API] Proxy connection failed:', error);
+      throw new Error(`Failed to connect to proxy: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // Option 2: Direct Call (Legacy/Local)
+  else {
+    const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
+    const url = `${COUPANG_API_BASE}${path}${query ? '?' + query : ''}`;
+
+    const options: RequestInit = {
+      method,
+      headers: {
+        'Authorization': authorization,
+        'Content-Type': 'application/json;charset=UTF-8'
+      }
+    };
+
+    if (body) {
+      options.body = JSON.stringify(body);
+    }
+
+    return fetch(url, options);
+  }
+}
+
 
 /**
  * Validate and clean barcode value
@@ -18,7 +86,7 @@ function cleanBarcode(barcode: string | undefined | null): string {
   }
 
   const trimmed = barcode.trim();
-  
+
   // If it's a URL (Amazon or otherwise), we cannot use it as barcode
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.includes('amazon.')) {
     console.log(`[Barcode] URL detected, setting to empty (Coupang requires standard barcode formats): ${trimmed.substring(0, 50)}...`);
@@ -64,15 +132,9 @@ export async function fetchDisplayCategoryStatus(
   const path = `/v2/providers/seller_api/apis/api/v1/marketplace/meta/display-categories/${displayCategoryCode}/status`;
   const query = '';
 
-  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
+  /* Refactored to use callCoupangApi */
+  const response = await callCoupangApi(method, path, query, accessKey, secretKey);
 
-  const response = await fetch(`${COUPANG_API_BASE}${path}`, {
-    method,
-    headers: {
-      'Authorization': authorization,
-      'Content-Type': 'application/json;charset=UTF-8'
-    }
-  });
 
   const responseText = await response.text();
 
@@ -106,17 +168,11 @@ export async function fetchCategoryRelatedMeta(
   const path = `/v2/providers/seller_api/apis/api/v1/marketplace/meta/category-related-metas/display-category-codes/${displayCategoryCode}`;
   const query = '';
 
-  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
-
   console.log('[CategoryMeta] Fetching metadata for displayCategoryCode:', displayCategoryCode);
 
-  const response = await fetch(`${COUPANG_API_BASE}${path}`, {
-    method,
-    headers: {
-      'Authorization': authorization,
-      'Content-Type': 'application/json;charset=UTF-8'
-    }
-  });
+  /* Refactored to use callCoupangApi */
+  const response = await callCoupangApi(method, path, query, accessKey, secretKey);
+
 
   const responseText = await response.text();
 
@@ -152,25 +208,25 @@ export async function getCategoryRequiredAttributes(
   try {
     const cache = new Map<number, any>();
     const meta = await fetchCategoryRelatedMeta(displayCategoryCode, accessKey, secretKey, cache);
-    
+
     // If no meta returned at all, category might not exist
     if (!meta) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: `Category ${displayCategoryCode} not found. Please verify the category code is correct.`
       };
     }
-    
+
     // If category exists but has no attribute metadata, return success with empty list
     if (!meta.attributeTypeMetas || meta.attributeTypeMetas.length === 0) {
       console.log(`[CategoryMeta] Category ${displayCategoryCode} exists but has no attribute metadata`);
-      return { 
-        success: true, 
+      return {
+        success: true,
         attributes: [],
         message: 'This category has no specific attribute requirements.'
       };
     }
-    
+
     const attributes = meta.attributeTypeMetas.map((attr: any) => ({
       name: attr.attributeTypeName,
       required: attr.required === 'MANDATORY',
@@ -179,7 +235,7 @@ export async function getCategoryRequiredAttributes(
       usableUnits: attr.usableUnits || [],
       predefinedValues: (attr.attributeValueMetas || []).map((v: any) => v.attributeValueName)
     }));
-    
+
     return { success: true, attributes };
   } catch (error: any) {
     // Provide more descriptive error messages
@@ -301,7 +357,7 @@ function extractWeightFromText(text: string): string | null {
     { regex: /(\d+(?:\.\d+)?)\s*mg/i, suffix: 'mg' },
     { regex: /(\d+(?:\.\d+)?)\s*gram/i, suffix: 'g' }
   ];
-  
+
   for (const { regex, suffix } of patterns) {
     const match = text.match(regex);
     if (match) {
@@ -317,7 +373,7 @@ function extractVolumeFromText(text: string): string | null {
     { regex: /(\d+(?:\.\d+)?)\s*l(?:iter)?/i, suffix: 'L' },
     { regex: /(\d+(?:\.\d+)?)\s*oz/i, suffix: 'oz' }
   ];
-  
+
   for (const { regex, suffix } of patterns) {
     const match = text.match(regex);
     if (match) {
@@ -331,7 +387,7 @@ function extractQuantityFromText(text: string): string | null {
   const patterns = [
     { regex: /(\d+)\s*(?:bag|pack|piece|ea|개|팩|box|set)s?/i, suffix: '개' }
   ];
-  
+
   for (const { regex, suffix } of patterns) {
     const match = text.match(regex);
     if (match) {
@@ -344,7 +400,7 @@ function extractQuantityFromText(text: string): string | null {
 function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | null {
   const productName = (product.productName || '').toLowerCase();
   const description = (product.detailedDescription || product.description || '').toLowerCase();
-  
+
   // Include option values in the search text
   const optionValues = [
     product.optionValue1 || '',
@@ -352,9 +408,9 @@ function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | nu
     product.optionValue3 || '',
     product.optionValue4 || ''
   ].join(' ').toLowerCase();
-  
+
   const combined = `${productName} ${description} ${optionValues}`;
-  
+
   const priorityMap: { [key: string]: { patterns: string[]; extractor: (p: any, c: string) => string | null } } = {
     '개당 캡슐/정': {
       patterns: ['tablet', 'capsule', 'cap', '정', '캡슐', 'tabs', 'vcaps', 'softgel', 'pills', 'ct'],
@@ -385,11 +441,11 @@ function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | nu
       extractor: (p, c) => extractQuantityFromText(c) || '1개'
     }
   };
-  
+
   for (const attr of groupAttrs) {
     const typeName = attr.attributeTypeName || '';
     const config = priorityMap[typeName];
-    
+
     if (config) {
       const hasMatch = config.patterns.some(pattern => combined.includes(pattern));
       if (hasMatch) {
@@ -401,19 +457,19 @@ function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | nu
       }
     }
   }
-  
+
   const firstAttr = groupAttrs[0];
   if (firstAttr) {
     const typeName = firstAttr.attributeTypeName || '';
     const config = priorityMap[typeName];
     const value = config ? config.extractor(product, combined) : '상세페이지 참조';
-    
+
     return {
       attributeTypeName: typeName.substring(0, 25),
       attributeValueName: (value || '상세페이지 참조').substring(0, 30)
     };
   }
-  
+
   return null;
 }
 
@@ -421,7 +477,7 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
   const typeName = (attrMeta.attributeTypeName || '').toLowerCase();
   const productName = (product.productName || '').toLowerCase();
   const description = (product.detailedDescription || product.description || '').toLowerCase();
-  
+
   // Also include option values in the text to search
   const optionValues = [
     product.optionValue1 || '',
@@ -429,76 +485,76 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
     product.optionValue3 || '',
     product.optionValue4 || ''
   ].join(' ').toLowerCase();
-  
+
   const combined = `${productName} ${description} ${optionValues}`;
-  
+
   // 수량 (quantity) - extract numeric count
   if (typeName.includes('수량') || typeName.includes('quantity')) {
     return extractQuantityFromText(combined) || '1개';
   }
-  
+
   // 개당 수량 (per unit count)
   if (typeName.includes('개당 수량')) {
     const match = combined.match(/(\d+)\s*(bags?|packs?|pieces?|개|팩|ea)/i);
     if (match) return `${match[1]}개`;
     return '1개';
   }
-  
+
   // 용량/개당 용량/최소 용량 (volume)
   if (typeName.includes('용량') || typeName.includes('volume')) {
     return extractVolumeFromText(combined) || '상세페이지 참조';
   }
-  
+
   // 중량/개당 중량/최소 중량 (weight)
   if (typeName.includes('중량') || typeName.includes('weight')) {
     return extractWeightFromText(combined) || '상세페이지 참조';
   }
-  
+
   // 캡슐/정 (tablets/capsules)
   if (typeName.includes('캡슐') || typeName.includes('정') || typeName.includes('tablet')) {
     return extractCountFromText(combined, ['tablet', 'capsule', '정', '캡슐', 'ct', 'tabs']) || '상세페이지 참조';
   }
-  
+
   // If the metadata has predefined values, use the first one
   const values = attrMeta.attributeValueMetas || [];
   if (values.length > 0) {
     return values[0].attributeValueName || '상세페이지 참조';
   }
-  
+
   return '상세페이지 참조';
 }
 
 // English to Korean attribute name mapping for value extraction
 const ENGLISH_ATTR_PATTERNS: { [key: string]: { koreanNames: string[]; valuePatterns: RegExp[] } } = {
-  'size': { 
+  'size': {
     koreanNames: ['사이즈', '크기'],
     valuePatterns: [/(\d+)\s*(tablets?|capsules?|정|캡슐|ct)/i, /(\d+)\s*(g|kg|mg|ml|l)/i]
   },
-  'weight': { 
+  'weight': {
     koreanNames: ['중량', '개당 중량', '최소 중량'],
     valuePatterns: [/(\d+(?:\.\d+)?)\s*(g|kg|mg|oz|lb)/i]
   },
-  'volume': { 
+  'volume': {
     koreanNames: ['용량', '개당 용량', '최소 용량'],
     valuePatterns: [/(\d+(?:\.\d+)?)\s*(ml|l|oz|fl)/i]
   },
-  'pack size': { 
+  'pack size': {
     koreanNames: ['개당 수량', '수량'],
     valuePatterns: [/(\d+)\s*(bags?|packs?|pieces?|개|팩|box|set)/i]
   },
-  'quantity': { 
+  'quantity': {
     koreanNames: ['수량', '개당 수량'],
     valuePatterns: [/(\d+)\s*(개|ea|pcs?|pieces?)/i]
   },
-  'tablets': { 
+  'tablets': {
     koreanNames: ['개당 캡슐/정'],
     valuePatterns: [/(\d+)\s*(tablets?|정)/i]
   },
-  'capsules': { 
+  'capsules': {
     koreanNames: ['개당 캡슐/정'],
     valuePatterns: [/(\d+)\s*(capsules?|캡슐)/i]
   },
-  'type': { 
+  'type': {
     koreanNames: ['종류', '형태'],
     valuePatterns: []
   },
@@ -518,32 +574,32 @@ function extractValueFromText(text: string, patterns: RegExp[]): string | null {
 export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] {
   const attributes: any[] = [];
   const usedAttrNames = new Set<string>();
-  
+
   // Debug: Log the meta structure to understand what we're receiving
   console.log(`[Attributes] Meta keys: ${meta ? Object.keys(meta).join(', ') : 'null'}`);
-  
+
   // Try different possible paths for attributeTypeMetas
   const attributeTypeMetas = meta?.attributeTypeMetas || meta?.data?.attributeTypeMetas || [];
-  
+
   console.log(`[Attributes] Raw attributeTypeMetas count: ${attributeTypeMetas.length}`);
   if (attributeTypeMetas.length > 0) {
     console.log(`[Attributes] First attr sample: ${JSON.stringify(attributeTypeMetas[0]).substring(0, 200)}`);
   }
-  
+
   const bundleGroups = new Map<number, any[]>();
   const mandatoryAttributes: any[] = [];
-  
+
   // Collect valid attribute names from category metadata
   const validAttrNames = new Set<string>();
   for (const attrMeta of attributeTypeMetas) {
     validAttrNames.add(attrMeta.attributeTypeName?.toLowerCase() || '');
   }
-  
+
   // Build combined text for extraction
   const productName = (product.productName || '').toLowerCase();
   const description = (product.detailedDescription || product.description || '').toLowerCase();
   const combined = `${productName} ${description}`;
-  
+
   // Collect user-provided option values (for value extraction, not for attribute names)
   const userOptionValues: string[] = [];
   if (product.optionValue1) userOptionValues.push(product.optionValue1);
@@ -552,12 +608,12 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   if (product.optionValue4) userOptionValues.push(product.optionValue4);
   const optionValuesText = userOptionValues.join(' ').toLowerCase();
   const allText = `${combined} ${optionValuesText}`;
-  
+
   // Categorize attributes from metadata
   for (const attrMeta of attributeTypeMetas) {
     const required = attrMeta.required === 'MANDATORY';
     const groupNumber = attrMeta.groupNumber || 0;
-    
+
     if (required) {
       if (groupNumber > 0) {
         if (!bundleGroups.has(groupNumber)) {
@@ -569,10 +625,10 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
       }
     }
   }
-  
+
   console.log(`[Attributes] Found ${mandatoryAttributes.length} mandatory attrs, ${bundleGroups.size} bundle groups`);
   console.log(`[Attributes] Valid attr names for category: ${Array.from(validAttrNames).slice(0, 10).join(', ')}...`);
-  
+
   // Process bundle groups - MUST select exactly one from each group
   for (const [groupNum, groupAttrs] of bundleGroups) {
     // Try to find the best match based on product content
@@ -595,15 +651,15 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
       }
     }
   }
-  
+
   // Process standalone mandatory attributes
   for (const attrMeta of mandatoryAttributes) {
     const attrName = attrMeta.attributeTypeName;
-    
+
     if (usedAttrNames.has(attrName?.toLowerCase())) {
       continue;
     }
-    
+
     const value = inferAttributeValue(attrMeta, product) || '상세페이지 참조';
     attributes.push({
       attributeTypeName: attrName.substring(0, 25),
@@ -612,12 +668,12 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     usedAttrNames.add(attrName.toLowerCase());
     console.log(`[Attributes] Mandatory: ${attrName}=${value}`);
   }
-  
+
   // Always ensure 수량 (quantity) is present if it's a valid attribute for this category
-  const hasQuantity = attributes.some(a => 
+  const hasQuantity = attributes.some(a =>
     a.attributeTypeName?.includes('수량')
   );
-  
+
   if (!hasQuantity && validAttrNames.has('수량')) {
     const qtyValue = extractQuantityFromText(allText) || '1개';
     attributes.push({
@@ -626,7 +682,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     });
     console.log(`[Attributes] Added default 수량=${qtyValue}`);
   }
-  
+
   // FALLBACK: For categories that require 수량, 개당 중량, 개당 용량 (like shampoo/cosmetics)
   // Add these mandatory attributes if not already present
   const requiredFallbackAttrs = [
@@ -634,9 +690,9 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     { name: '개당 중량', value: '상세페이지 참조' },
     { name: '개당 용량', value: extractVolumeFromText(productName) || '상세페이지 참조' }
   ];
-  
+
   for (const fallback of requiredFallbackAttrs) {
-    const hasAttr = attributes.some(a => 
+    const hasAttr = attributes.some(a =>
       a.attributeTypeName === fallback.name
     );
     if (!hasAttr) {
@@ -647,7 +703,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
       console.log(`[Attributes] Fallback added: ${fallback.name}=${fallback.value}`);
     }
   }
-  
+
   console.log(`[Attributes] Final attributes count: ${attributes.length}`);
   return attributes;
 }
@@ -709,7 +765,7 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
         attributeValueName: product.optionValue4.substring(0, 30)
       });
     }
-    
+
     if (attributes.length === 0) {
       attributes.push({
         attributeTypeName: "수량",
@@ -726,7 +782,7 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
       vendorPath: product.mainImage.trim()
     });
   }
-  
+
   if (product.additionalImages && Array.isArray(product.additionalImages)) {
     product.additionalImages.slice(0, 9).forEach((img: string, idx: number) => {
       if (img && img.trim()) {
@@ -776,12 +832,12 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
 
   const isShippingFromOverseas = wingSettings.countryCode && wingSettings.countryCode !== 'KR';
   const isOverseasProduct = product.overseasPurchase || isShippingFromOverseas;
-  
+
   console.log(`[Overseas Check] Country: ${wingSettings.countryCode}, Product overseas flag: ${product.overseasPurchase}, Final overseas: ${isOverseasProduct}`);
-  
+
   // Clean and validate barcode - extracts ASIN from Amazon URLs or validates format
   const validBarcode = cleanBarcode(product.barcode);
-  
+
   const item: any = {
     itemName: (product.productName || "Product").substring(0, 150),
     originalPrice: Math.round(product.discountBasePrice || product.salePrice || 0),
@@ -903,23 +959,17 @@ export async function validateCredentials(accessKey: string, secretKey: string, 
   const method = "GET";
   const path = `/v2/providers/seller_api/apis/api/v1/marketplace/seller-products`;
   const query = `vendorId=${vendorId}&nextToken=&maxPerPage=1&status=APPROVED`;
-  
+
   try {
-    const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
-    
     console.log('[Validate] Making API request...');
-    const response = await fetch(`${COUPANG_API_BASE}${path}?${query}`, {
-      method,
-      headers: {
-        'Authorization': authorization,
-        'Content-Type': 'application/json;charset=UTF-8'
-      }
-    });
+    /* Refactored to use callCoupangApi */
+    const response = await callCoupangApi(method, path, query, accessKey, secretKey);
+
 
     console.log('[Validate] Response status:', response.status);
     const responseText = await response.text();
     console.log('[Validate] Response body:', responseText.slice(0, 500));
-    
+
     if (response.status === 200) {
       return { valid: true, message: 'API credentials verified successfully!' };
     } else if (response.status === 401) {
@@ -930,12 +980,12 @@ export async function validateCredentials(accessKey: string, secretKey: string, 
         if (errorData.message && errorData.message.includes('ip address')) {
           const ipMatch = errorData.message.match(/(\d+\.\d+\.\d+\.\d+)/);
           const ip = ipMatch ? ipMatch[1] : 'unknown';
-          return { 
-            valid: false, 
-            message: `IP not whitelisted. Please add IP "${ip}" to your Wing API settings.` 
+          return {
+            valid: false,
+            message: `IP not whitelisted. Please add IP "${ip}" to your Wing API settings.`
           };
         }
-      } catch {}
+      } catch { }
       return { valid: false, message: 'Access forbidden. Please check your Vendor ID and API permissions.' };
     } else {
       return { valid: false, message: `API error (${response.status}): ${responseText.slice(0, 200)}` };
@@ -959,7 +1009,7 @@ export async function uploadProduct(
   const method = "POST";
   const path = `/v2/providers/seller_api/apis/api/v1/marketplace/seller-products`;
   const query = "";
-  
+
   try {
     const validation = validateProductForUpload(product, wingSettings);
     if (!validation.valid) {
@@ -971,20 +1021,13 @@ export async function uploadProduct(
     }
 
     const payload = transformProductToCoupangFormat(product, vendorId, wingSettings, notices, categoryMeta);
-    
+
     console.log('[Upload] Uploading product:', product.productName);
     console.log('[Upload] Payload:', JSON.stringify(payload, null, 2).slice(0, 2000));
 
-    const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
+    /* Refactored to use callCoupangApi */
+    const response = await callCoupangApi(method, path, query, accessKey, secretKey, payload);
 
-    const response = await fetch(`${COUPANG_API_BASE}${path}`, {
-      method,
-      headers: {
-        'Authorization': authorization,
-        'Content-Type': 'application/json;charset=UTF-8'
-      },
-      body: JSON.stringify(payload)
-    });
 
     const responseText = await response.text();
     console.log('[Upload] Response status:', response.status);
@@ -999,7 +1042,7 @@ export async function uploadProduct(
 
     const isHttpSuccess = response.status === 200 || response.status === 201;
     const isCoupangSuccess = responseData.code === 'SUCCESS';
-    
+
     if (isHttpSuccess && isCoupangSuccess) {
       return {
         success: true,
@@ -1018,9 +1061,9 @@ export async function uploadProduct(
       } else if (responseData.error) {
         errorMsg = responseData.error;
       }
-      
+
       console.log('[Upload] Product rejected by Coupang:', errorMsg);
-      
+
       return {
         success: false,
         error: errorMsg,
@@ -1053,7 +1096,7 @@ export async function batchUpload(
 
   for (let i = 0; i < products.length; i++) {
     const product = products[i];
-    
+
     console.log(`[Batch] Processing product ${i + 1}/${products.length}: ${product.productName}`);
 
     let notices: any[] = [];
@@ -1068,9 +1111,9 @@ export async function batchUpload(
     } catch (err) {
       console.error(`[Batch] Failed to fetch category meta for product ${i + 1}:`, err);
     }
-    
+
     const result = await uploadProduct(product, accessKey, secretKey, vendorId, wingSettings, notices, categoryMeta);
-    
+
     results.push({
       productIndex: i,
       productName: product.productName,
@@ -1105,20 +1148,14 @@ export async function fetchShippingCenters(
   try {
     const returnPath = `/v2/providers/openapi/apis/api/v4/vendors/${vendorId}/returnShippingCenters`;
     const returnQuery = `pageSize=50&pageNum=1`;
-    const { authorization: returnAuth } = generateHmacSignature('GET', returnPath, returnQuery, secretKey, accessKey);
-    
     console.log('[API] Fetching return centers from:', returnPath);
-    const returnResponse = await fetch(`${COUPANG_API_BASE}${returnPath}?${returnQuery}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': returnAuth,
-        'Content-Type': 'application/json;charset=UTF-8'
-      }
-    });
+    /* Refactored to use callCoupangApi */
+    const returnResponse = await callCoupangApi('GET', returnPath, returnQuery, accessKey, secretKey);
+
 
     const returnText = await returnResponse.text();
     console.log('[API] Return centers response:', returnResponse.status, returnText.slice(0, 500));
-    
+
     if (returnResponse.status === 200) {
       const returnData = JSON.parse(returnText);
       const content =
@@ -1149,24 +1186,18 @@ export async function fetchShippingCenters(
   try {
     const shippingPath = `/v2/providers/marketplace_openapi/apis/api/v2/vendor/shipping-place/outbound`;
     const shippingQuery = `pageNum=1&pageSize=50`;
-    const { authorization: shippingAuth } = generateHmacSignature('GET', shippingPath, shippingQuery, secretKey, accessKey);
-    
     console.log('[API] Fetching outbound shipping places from:', shippingPath);
-    const shippingResponse = await fetch(`${COUPANG_API_BASE}${shippingPath}?${shippingQuery}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': shippingAuth,
-        'Content-Type': 'application/json;charset=UTF-8'
-      }
-    });
+    /* Refactored to use callCoupangApi */
+    const shippingResponse = await callCoupangApi('GET', shippingPath, shippingQuery, accessKey, secretKey);
+
 
     const shippingText = await shippingResponse.text();
     console.log('[API] Shipping places response:', shippingResponse.status, shippingText.slice(0, 1000));
-    
+
     if (shippingResponse.status === 200) {
       const shippingData = JSON.parse(shippingText);
       const content = shippingData.content || shippingData.data?.content || [];
-      
+
       if (Array.isArray(content)) {
         results.shippingPlaces = content.map((place: any) => ({
           code: place.outboundShippingPlaceCode,
@@ -1209,16 +1240,9 @@ export async function recommendCategory(
 
   console.log('[RecommendCategory] Request:', JSON.stringify(requestBody));
 
-  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
+  /* Refactored to use callCoupangApi */
+  const response = await callCoupangApi(method, path, query, accessKey, secretKey, requestBody);
 
-  const response = await fetch(`${COUPANG_API_BASE}${path}`, {
-    method,
-    headers: {
-      'Authorization': authorization,
-      'Content-Type': 'application/json;charset=UTF-8'
-    },
-    body: JSON.stringify(requestBody)
-  });
 
   const responseText = await response.text();
   console.log('[RecommendCategory] Response:', response.status, responseText.slice(0, 500));
@@ -1269,16 +1293,10 @@ export async function fetchVendorItemInventory(
 
   console.log('[FetchInventory] Fetching inventory for vendorItemId:', vendorItemId);
 
-  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
-
   try {
-    const response = await fetch(`${COUPANG_API_BASE}${path}`, {
-      method,
-      headers: {
-        'Authorization': authorization,
-        'Content-Type': 'application/json;charset=UTF-8'
-      }
-    });
+    /* Refactored to use callCoupangApi */
+    const response = await callCoupangApi(method, path, query, accessKey, secretKey);
+
 
     const responseText = await response.text();
     console.log('[FetchInventory] Response:', response.status, responseText.slice(0, 500));
@@ -1345,16 +1363,10 @@ export async function updateVendorItemPrice(
 
   console.log('[UpdatePrice] Updating price for vendorItemId:', vendorItemId, 'New price:', newPrice);
 
-  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
-
   try {
-    const response = await fetch(`${COUPANG_API_BASE}${path}`, {
-      method,
-      headers: {
-        'Authorization': authorization,
-        'Content-Type': 'application/json;charset=UTF-8'
-      }
-    });
+    /* Refactored to use callCoupangApi */
+    const response = await callCoupangApi(method, path, query, accessKey, secretKey);
+
 
     const responseText = await response.text();
     console.log('[UpdatePrice] Response:', response.status, responseText.slice(0, 500));
@@ -1416,27 +1428,21 @@ export async function fetchSellerProducts(
 }> {
   const method = 'GET';
   const path = '/v2/providers/seller_api/apis/api/v1/marketplace/seller-products';
-  
+
   // Build query string
   const params = new URLSearchParams();
   if (options?.sellerProductId) params.append('sellerProductId', options.sellerProductId);
   if (options?.page) params.append('page', options.page.toString());
   if (options?.size) params.append('size', options.size.toString());
-  
+
   const query = params.toString() ? `?${params.toString()}` : '';
 
   console.log('[FetchSellerProducts] Query:', query || '(no filters)');
 
-  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
-
   try {
-    const response = await fetch(`${COUPANG_API_BASE}${path}${query}`, {
-      method,
-      headers: {
-        'Authorization': authorization,
-        'Content-Type': 'application/json;charset=UTF-8'
-      }
-    });
+    /* Refactored to use callCoupangApi */
+    const response = await callCoupangApi(method, path, query, accessKey, secretKey);
+
 
     const responseText = await response.text();
     console.log('[FetchSellerProducts] Response:', response.status, responseText.slice(0, 500));
@@ -1452,7 +1458,7 @@ export async function fetchSellerProducts(
 
     if (data?.code === 'SUCCESS' && data?.data) {
       const productList = Array.isArray(data.data.content) ? data.data.content : [];
-      
+
       return {
         success: true,
         products: productList.map((p: any) => ({
