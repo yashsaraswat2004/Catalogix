@@ -25,7 +25,7 @@ const ForgotPassword = () => {
             // We need to implement the API call here. 
             // Assuming we will add a forgotPassword method to auth context or call fetch directly.
             // For now, let's call fetch directly to avoid changing Context interface yet.
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/forgotpassword`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/auth/forgotpassword`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
