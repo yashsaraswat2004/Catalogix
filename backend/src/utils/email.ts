@@ -19,15 +19,30 @@ const sendEmail = async (options: EmailOptions): Promise<void> => {
     }
 
     const smtpPort = Number(process.env.SMTP_PORT) || 587;
-    const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: smtpPort,
-        secure: smtpPort === 465, // Use SSL for 465, STARTTLS for 587
-        auth: {
-            user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD,
-        },
-    });
+    let transporterConfig: any;
+
+    if (process.env.SMTP_HOST === 'smtp.gmail.com') {
+        // Use built-in Gmail service for better reliability on cloud platforms
+        transporterConfig = {
+            service: 'gmail',
+            auth: {
+                user: process.env.SMTP_EMAIL,
+                pass: process.env.SMTP_PASSWORD,
+            },
+        };
+    } else {
+        transporterConfig = {
+            host: process.env.SMTP_HOST,
+            port: smtpPort,
+            secure: smtpPort === 465,
+            auth: {
+                user: process.env.SMTP_EMAIL,
+                pass: process.env.SMTP_PASSWORD,
+            },
+        };
+    }
+
+    const transporter = nodemailer.createTransport(transporterConfig);
 
     // 2) Define the email options
     const mailOptions = {
