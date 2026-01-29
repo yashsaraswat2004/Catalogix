@@ -15,13 +15,14 @@ import repricingRoutes from './routes/repricing';
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy (Render load balancer)
 const PORT = process.env.PORT || 3001;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 function validateEnvironment(): void {
   const warnings: string[] = [];
   const errors: string[] = [];
-  
+
   if (!process.env.GEMINI_API_KEY) {
     warnings.push('GEMINI_API_KEY not set - translation will not work');
   }
@@ -35,13 +36,13 @@ function validateEnvironment(): void {
       warnings.push('JWT_SECRET not set - using insecure default (OK for development)');
     }
   }
-  
+
   if (errors.length > 0) {
     console.error('❌ Environment Errors:');
     errors.forEach(e => console.error(`   - ${e}`));
     process.exit(1);
   }
-  
+
   if (warnings.length > 0) {
     console.warn('⚠️  Environment Warnings:');
     warnings.forEach(w => console.warn(`   - ${w}`));
@@ -75,7 +76,7 @@ const corsOptions = {
       callback(null, true);
       return;
     }
-    
+
     if (NODE_ENV === 'development') {
       // In development, allow all localhost origins
       if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
@@ -83,7 +84,7 @@ const corsOptions = {
         return;
       }
     }
-    
+
     const allowedOrigins = getAllowedOrigins();
     if (allowedOrigins === true || (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin))) {
       callback(null, true);
@@ -149,8 +150,8 @@ app.use('/api/repricing', repricingRoutes);
 
 // Health check - Enhanced
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     environment: NODE_ENV,
     uptime: Math.floor(process.uptime()),
@@ -178,7 +179,7 @@ app.get('/', (req: Request, res: Response) => {
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.method} ${req.path} not found`,
     timestamp: new Date().toISOString()
@@ -188,12 +189,12 @@ app.use((req: Request, res: Response) => {
 // Global Error Handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error('❌ Unhandled Error:', err);
-  
+
   // Don't leak error details in production
-  const errorResponse = NODE_ENV === 'production' 
+  const errorResponse = NODE_ENV === 'production'
     ? { error: 'Internal Server Error', message: 'Something went wrong' }
     : { error: err.name, message: err.message, stack: err.stack };
-  
+
   res.status(500).json({
     ...errorResponse,
     timestamp: new Date().toISOString()
@@ -204,13 +205,13 @@ let server: any;
 
 function gracefulShutdown(signal: string) {
   console.log(`\n📴 Received ${signal}. Shutting down gracefully...`);
-  
+
   if (server) {
     server.close(() => {
       console.log('✅ HTTP server closed');
       process.exit(0);
     });
-    
+
     // Force close after 10 seconds
     setTimeout(() => {
       console.error('⚠️  Forcing shutdown after timeout');
@@ -228,7 +229,7 @@ async function startServer() {
   try {
     validateEnvironment();
     await connectDatabase();
-    
+
     server = app.listen(PORT, () => {
       console.log(`\n Server running on http://localhost:${PORT}`);
       console.log(` Environment: ${NODE_ENV}`);
