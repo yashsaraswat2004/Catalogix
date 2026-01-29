@@ -18,10 +18,11 @@ const sendEmail = async (options: EmailOptions): Promise<void> => {
         return;
     }
 
+    const smtpPort = Number(process.env.SMTP_PORT) || 587;
     const transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: false, // true for 465, false for other ports
+        port: smtpPort,
+        secure: smtpPort === 465, // Use SSL for 465, STARTTLS for 587
         auth: {
             user: process.env.SMTP_EMAIL,
             pass: process.env.SMTP_PASSWORD,
