@@ -86,6 +86,13 @@ const corsOptions = {
     }
 
     const allowedOrigins = getAllowedOrigins();
+
+    // Check for Vercel preview deployments (dynamic subdomains)
+    if (origin.endsWith('.vercel.app')) {
+      callback(null, true);
+      return;
+    }
+
     if (allowedOrigins === true || (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin))) {
       callback(null, true);
     } else {
