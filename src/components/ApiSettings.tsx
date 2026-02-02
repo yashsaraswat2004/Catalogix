@@ -18,9 +18,11 @@ import { cn } from '@/lib/utils';
 interface ApiSettingsProps {
   credentials: CoupangApiCredentials | null;
   onSave: (credentials: CoupangApiCredentials) => void;
+  credentialsValidated?: boolean;
+  isValidating?: boolean;
 }
 
-export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
+export function ApiSettings({ credentials, onSave, credentialsValidated = false, isValidating = false }: ApiSettingsProps) {
   const [open, setOpen] = useState(false);
   const [showSecretKey, setShowSecretKey] = useState(false);
   const [formData, setFormData] = useState<CoupangApiCredentials>({
@@ -55,21 +57,35 @@ export function ApiSettings({ credentials, onSave }: ApiSettingsProps) {
   };
 
   const isConfigured = credentials?.accessKey && credentials?.secretKey && credentials?.vendorId;
+  const isConnected = isConfigured && credentialsValidated;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button 
-          variant={isConfigured ? "outline" : "default"}
+          variant={isConnected ? "outline" : isConfigured ? "outline" : "default"}
           className={cn(
             "gap-2",
-            isConfigured && "border-success/30 text-success hover:bg-success/10"
+            isConnected && "border-success/30 text-success hover:bg-success/10",
+            isConfigured && !credentialsValidated && !isValidating && "border-yellow-500/30 text-yellow-600 hover:bg-yellow-500/10",
+            isValidating && "border-blue-500/30 text-blue-600 hover:bg-blue-500/10"
           )}
+          disabled={isValidating}
         >
-          {isConfigured ? (
+          {isValidating ? (
+            <>
+              <Settings className="w-4 h-4 animate-spin" />
+              Validating...
+            </>
+          ) : isConnected ? (
             <>
               <CheckCircle2 className="w-4 h-4" />
               API Connected
+            </>
+          ) : isConfigured ? (
+            <>
+              <AlertCircle className="w-4 h-4" />
+              API Not Verified
             </>
           ) : (
             <>

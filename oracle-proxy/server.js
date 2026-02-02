@@ -94,13 +94,18 @@ app.post('/proxy', async (req, res) => {
         // 3. Forward Request to Coupang
         const url = `${COUPANG_API_BASE}${path}${query ? '?' + query : ''}`;
 
+        // Create AbortController for timeout (45 seconds)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+
         const fetchOptions = {
             method: method,
             headers: {
                 'Authorization': authorization,
                 'Content-Type': 'application/json;charset=UTF-8',
                 'X-Requested-With': 'XMLHttpRequest'
-            }
+            },
+            signal: controller.signal
         };
 
         if (body && (method === 'POST' || method === 'PUT')) {
@@ -108,6 +113,7 @@ app.post('/proxy', async (req, res) => {
         }
 
         const response = await fetch(url, fetchOptions);
+        clearTimeout(timeoutId);
         const responseText = await response.text();
 
         // 4. Return Response
@@ -125,6 +131,22 @@ app.post('/proxy', async (req, res) => {
 
     } catch (error) {
         console.error('[Proxy] Error:', error);
+        
+        // Handle specific error types
+        if (error.name === 'AbortError') {
+            return res.status(504).json({
+                error: 'Gateway Timeout',
+                message: 'Request to Coupang API timed out after 45 seconds'
+            });
+        }
+        
+        if (error.cause?.code === 'UND_ERR_HEADERS_TIMEOUT' || error.message?.includes('HeadersTimeout')) {
+            return res.status(504).json({
+                error: 'Gateway Timeout',
+                message: 'Coupang API did not respond in time. Please try again.'
+            });
+        }
+        
         res.status(500).json({
             error: 'Proxy Error',
             message: error.message

@@ -35,15 +35,32 @@ async function callCoupangApi(
       headers['x-proxy-secret'] = COUPANG_PROXY_SECRET;
     }
 
+    // Create AbortController for timeout handling (60 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
     try {
       const response = await fetch(`${COUPANG_PROXY_URL}/proxy`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(proxyPayload)
+        body: JSON.stringify(proxyPayload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       return response;
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('[API] Proxy connection failed:', error);
+      
+      // Provide more helpful error messages
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Proxy request timed out after 60 seconds. The proxy server may be unresponsive.');
+        }
+        if (error.message.includes('HeadersTimeout') || error.message.includes('UND_ERR_HEADERS_TIMEOUT')) {
+          throw new Error('Proxy server did not respond in time. Please check if the Oracle proxy is running.');
+        }
+      }
       throw new Error(`Failed to connect to proxy: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

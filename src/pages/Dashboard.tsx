@@ -424,7 +424,12 @@ const Dashboard = () => {
             </nav>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <ApiSettings credentials={credentials} onSave={handleCredentialsSave} />
+            <ApiSettings 
+              credentials={credentials} 
+              onSave={handleCredentialsSave} 
+              credentialsValidated={credentialsValidated}
+              isValidating={isValidating}
+            />
             
             {/* User Menu - Desktop */}
             <div className="hidden md:block">
