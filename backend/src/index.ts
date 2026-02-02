@@ -77,6 +77,9 @@ const corsOptions = {
       return;
     }
 
+    // Log the origin for debugging
+    console.log(`[CORS] Request from origin: ${origin}`);
+
     if (NODE_ENV === 'development') {
       // In development, allow all localhost origins
       if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
@@ -93,9 +96,30 @@ const corsOptions = {
       return;
     }
 
+    // Check for Netlify deployments
+    if (origin.endsWith('.netlify.app')) {
+      callback(null, true);
+      return;
+    }
+
+    // Check for common deployment platforms
+    if (origin.endsWith('.render.com') || origin.endsWith('.onrender.com')) {
+      callback(null, true);
+      return;
+    }
+
+    // Allow HTTPS origins in production (more permissive for SPA frontends)
+    if (NODE_ENV === 'production' && origin.startsWith('https://')) {
+      // Log allowed HTTPS origin
+      console.log(`[CORS] Allowing HTTPS origin: ${origin}`);
+      callback(null, true);
+      return;
+    }
+
     if (allowedOrigins === true || (Array.isArray(allowedOrigins) && allowedOrigins.includes(origin))) {
       callback(null, true);
     } else {
+      console.warn(`[CORS] Blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
