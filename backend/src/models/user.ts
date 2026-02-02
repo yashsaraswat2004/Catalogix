@@ -2,6 +2,59 @@ import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
+// Encryption key from environment (must be 32 bytes for AES-256)
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'nexcatalog-default-key-32bytes!'; // 32 chars
+const IV_LENGTH = 16;
+
+// Encrypt sensitive data
+function encrypt(text: string): string {
+  if (!text) return '';
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY.padEnd(32).slice(0, 32)), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+// Decrypt sensitive data
+function decrypt(text: string): string {
+  if (!text || !text.includes(':')) return '';
+  try {
+    const parts = text.split(':');
+    const iv = Buffer.from(parts[0], 'hex');
+    const encryptedText = Buffer.from(parts[1], 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY.padEnd(32).slice(0, 32)), iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  } catch {
+    return '';
+  }
+}
+
+// Wing Settings interface
+export interface IWingSettings {
+  returnCenterCode: string;
+  returnChargeName: string;
+  companyContactNumber: string;
+  returnZipCode: string;
+  returnAddress: string;
+  returnAddressDetail: string;
+  outboundShippingPlaceCode: string;
+  deliveryCompanyCode: string;
+  countryCode: string;
+  vendorUserId: string;
+  deliveryChargeOnReturn?: number;
+  returnCharge?: number;
+}
+
+// Coupang Credentials interface
+export interface ICoupangCredentials {
+  accessKey: string;
+  secretKey: string;
+  vendorId: string;
+}
+
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
   email: string;
@@ -13,7 +66,35 @@ export interface IUser extends Document {
   getResetPasswordToken(): string;
   resetPasswordToken?: string;
   resetPasswordExpire?: Date;
+  // New fields for credentials and settings
+  coupangCredentials?: {
+    accessKeyEncrypted: string;
+    secretKeyEncrypted: string;
+    vendorId: string;
+    validated: boolean;
+    validatedAt?: Date;
+  };
+  wingSettings?: IWingSettings;
+  onboardingCompleted: boolean;
+  // Methods
+  setCoupangCredentials(credentials: ICoupangCredentials): void;
+  getCoupangCredentials(): ICoupangCredentials | null;
 }
+
+const wingSettingsSchema = new Schema({
+  returnCenterCode: { type: String, default: '' },
+  returnChargeName: { type: String, default: '' },
+  companyContactNumber: { type: String, default: '' },
+  returnZipCode: { type: String, default: '' },
+  returnAddress: { type: String, default: '' },
+  returnAddressDetail: { type: String, default: '' },
+  outboundShippingPlaceCode: { type: String, default: '' },
+  deliveryCompanyCode: { type: String, default: '' },
+  countryCode: { type: String, default: '' },
+  vendorUserId: { type: String, default: '' },
+  deliveryChargeOnReturn: { type: Number, default: 2500 },
+  returnCharge: { type: Number, default: 2500 },
+}, { _id: false });
 
 const userSchema = new Schema<IUser>(
   {
@@ -40,6 +121,18 @@ const userSchema = new Schema<IUser>(
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
+    // Coupang API credentials (encrypted)
+    coupangCredentials: {
+      accessKeyEncrypted: { type: String, default: '' },
+      secretKeyEncrypted: { type: String, default: '' },
+      vendorId: { type: String, default: '' },
+      validated: { type: Boolean, default: false },
+      validatedAt: { type: Date },
+    },
+    // Wing settings
+    wingSettings: { type: wingSettingsSchema, default: () => ({}) },
+    // Onboarding status
+    onboardingCompleted: { type: Boolean, default: false },
   },
   {
     timestamps: true,
@@ -89,4 +182,34 @@ userSchema.methods.getResetPasswordToken = function (): string {
   return resetToken;
 };
 
+// Set Coupang credentials (encrypts sensitive data)
+userSchema.methods.setCoupangCredentials = function (credentials: ICoupangCredentials): void {
+  this.coupangCredentials = {
+    accessKeyEncrypted: encrypt(credentials.accessKey),
+    secretKeyEncrypted: encrypt(credentials.secretKey),
+    vendorId: credentials.vendorId,
+    validated: false,
+    validatedAt: undefined,
+  };
+};
+
+// Get Coupang credentials (decrypts sensitive data)
+userSchema.methods.getCoupangCredentials = function (): ICoupangCredentials | null {
+  if (!this.coupangCredentials?.vendorId) return null;
+  
+  const accessKey = decrypt(this.coupangCredentials.accessKeyEncrypted);
+  const secretKey = decrypt(this.coupangCredentials.secretKeyEncrypted);
+  
+  if (!accessKey || !secretKey) return null;
+  
+  return {
+    accessKey,
+    secretKey,
+    vendorId: this.coupangCredentials.vendorId,
+  };
+};
+
 export const User = mongoose.model<IUser>('User', userSchema);
+
+// Export encrypt/decrypt for use in routes if needed
+export { encrypt, decrypt };

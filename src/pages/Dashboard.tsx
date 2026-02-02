@@ -61,10 +61,11 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('upload');
   const [isTranslating, setIsTranslating] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   
   const { toast } = useToast();
   const { validateCredentials, dryRun, uploadProducts, translateProducts, isValidating, isUploading } = useCoupangApi();
-  const { user, logout } = useAuth();
+  const { user, logout, loadSettings, saveCredentials, saveWingSettings, markCredentialsValidated } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -72,38 +73,99 @@ const Dashboard = () => {
     navigate('/');
   };
 
-  // Load credentials and settings from localStorage
+  // Load credentials and settings from backend (or fallback to localStorage)
   useEffect(() => {
-    const savedCreds = localStorage.getItem('coupang_credentials');
-    if (savedCreds) {
-      try {
-        const parsedCreds = JSON.parse(savedCreds);
-        setCredentials(parsedCreds);
-        // Also restore validated status
-        const wasValidated = localStorage.getItem('coupang_credentials_validated');
-        if (wasValidated === 'true') {
-          setCredentialsValidated(true);
+    const loadUserSettings = async () => {
+      // Try to load from backend first
+      const settings = await loadSettings();
+      
+      if (settings) {
+        // Load credentials from backend
+        if (settings.credentials) {
+          setCredentials({
+            accessKey: settings.credentials.accessKey,
+            secretKey: settings.credentials.secretKey,
+            vendorId: settings.credentials.vendorId,
+          });
+          setCredentialsValidated(settings.credentials.validated);
+          
+          // Also sync to localStorage for offline access
+          localStorage.setItem('coupang_credentials', JSON.stringify({
+            accessKey: settings.credentials.accessKey,
+            secretKey: settings.credentials.secretKey,
+            vendorId: settings.credentials.vendorId,
+          }));
+          localStorage.setItem('coupang_credentials_validated', settings.credentials.validated ? 'true' : 'false');
         }
-      } catch (e) {
-        console.error('Failed to parse saved credentials');
-      }
-    }
+        
+        // Load Wing settings from backend
+        if (settings.wingSettings) {
+          setWingSettings({ ...DEFAULT_WING_SETTINGS, ...settings.wingSettings });
+          localStorage.setItem('coupang_wing_settings', JSON.stringify(settings.wingSettings));
+        }
+        
+        setSettingsLoaded(true);
+        
+        // Auto-validate if credentials exist but not validated
+        if (settings.credentials && !settings.credentials.validated) {
+          autoValidateCredentials({
+            accessKey: settings.credentials.accessKey,
+            secretKey: settings.credentials.secretKey,
+            vendorId: settings.credentials.vendorId,
+          });
+        }
+      } else {
+        // Fallback to localStorage
+        const savedCreds = localStorage.getItem('coupang_credentials');
+        if (savedCreds) {
+          try {
+            const parsedCreds = JSON.parse(savedCreds);
+            setCredentials(parsedCreds);
+            const wasValidated = localStorage.getItem('coupang_credentials_validated');
+            if (wasValidated === 'true') {
+              setCredentialsValidated(true);
+            }
+          } catch (e) {
+            console.error('Failed to parse saved credentials');
+          }
+        }
 
-    const savedWing = localStorage.getItem('coupang_wing_settings');
-    if (savedWing) {
-      try {
-        setWingSettings({ ...DEFAULT_WING_SETTINGS, ...JSON.parse(savedWing) });
-      } catch (e) {
-        console.error('Failed to parse saved wing settings');
+        const savedWing = localStorage.getItem('coupang_wing_settings');
+        if (savedWing) {
+          try {
+            setWingSettings({ ...DEFAULT_WING_SETTINGS, ...JSON.parse(savedWing) });
+          } catch (e) {
+            console.error('Failed to parse saved wing settings');
+          }
+        }
+        
+        setSettingsLoaded(true);
       }
+    };
+
+    if (user) {
+      loadUserSettings();
     }
-  }, []);
+  }, [user]);
+
+  // Auto-validate credentials on load
+  const autoValidateCredentials = async (creds: CoupangApiCredentials) => {
+    const result = await validateCredentials(creds);
+    if (result.valid) {
+      setCredentialsValidated(true);
+      localStorage.setItem('coupang_credentials_validated', 'true');
+      await markCredentialsValidated(true);
+    }
+  };
 
   const handleCredentialsSave = async (creds: CoupangApiCredentials) => {
     setCredentials(creds);
     setCredentialsValidated(false);
     localStorage.setItem('coupang_credentials', JSON.stringify(creds));
     localStorage.setItem('coupang_credentials_validated', 'false');
+    
+    // Save to backend
+    await saveCredentials(creds);
     
     toast({
       title: "Validating API Credentials...",
@@ -115,12 +177,14 @@ const Dashboard = () => {
     if (result.valid) {
       setCredentialsValidated(true);
       localStorage.setItem('coupang_credentials_validated', 'true');
+      await markCredentialsValidated(true);
       toast({
         title: "API Credentials Valid",
-        description: "Your Coupang API credentials have been verified successfully.",
+        description: "Your Coupang API credentials have been verified and saved to your account.",
       });
     } else {
       localStorage.setItem('coupang_credentials_validated', 'false');
+      await markCredentialsValidated(false);
       toast({
         title: "API Credentials Invalid",
         description: result.message,
@@ -129,12 +193,16 @@ const Dashboard = () => {
     }
   };
 
-  const handleWingSettingsSave = (settings: WingSettings) => {
+  const handleWingSettingsSave = async (settings: WingSettings) => {
     setWingSettings(settings);
     localStorage.setItem('coupang_wing_settings', JSON.stringify(settings));
+    
+    // Save to backend
+    await saveWingSettings(settings);
+    
     toast({
       title: "Wing Settings Saved",
-      description: "Your return location and shipping settings have been saved.",
+      description: "Your return location and shipping settings have been saved to your account.",
     });
   };
 

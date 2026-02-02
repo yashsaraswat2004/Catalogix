@@ -342,4 +342,152 @@ router.put('/resetpassword/:resetToken', resetPasswordValidation, async (req: Re
   }
 });
 
+// =============================================
+// USER SETTINGS ENDPOINTS
+// =============================================
+
+// GET /api/auth/settings - Get user's saved settings
+router.get('/settings', authenticate, async (req: Request, res: Response) => {
+  try {
+    const user = req.user!;
+    
+    // Get decrypted credentials
+    const credentials = user.getCoupangCredentials ? user.getCoupangCredentials() : null;
+    
+    res.json({
+      success: true,
+      settings: {
+        credentials: credentials ? {
+          accessKey: credentials.accessKey,
+          secretKey: credentials.secretKey,
+          vendorId: credentials.vendorId,
+          validated: user.coupangCredentials?.validated || false,
+          validatedAt: user.coupangCredentials?.validatedAt,
+        } : null,
+        wingSettings: user.wingSettings || null,
+        onboardingCompleted: user.onboardingCompleted || false,
+      },
+    });
+  } catch (error) {
+    console.error('Get settings error:', error);
+    res.status(500).json({ error: 'Failed to get settings' });
+  }
+});
+
+// PUT /api/auth/settings/credentials - Save Coupang API credentials
+router.put('/settings/credentials', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { accessKey, secretKey, vendorId } = req.body;
+    
+    if (!accessKey || !secretKey || !vendorId) {
+      res.status(400).json({ error: 'All credential fields are required' });
+      return;
+    }
+    
+    const user = await User.findById(req.user!._id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    
+    // Use the method to encrypt and save credentials
+    user.setCoupangCredentials({ accessKey, secretKey, vendorId });
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: 'Credentials saved successfully',
+    });
+  } catch (error) {
+    console.error('Save credentials error:', error);
+    res.status(500).json({ error: 'Failed to save credentials' });
+  }
+});
+
+// PUT /api/auth/settings/credentials/validated - Mark credentials as validated
+router.put('/settings/credentials/validated', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { validated } = req.body;
+    
+    const user = await User.findById(req.user!._id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    
+    if (user.coupangCredentials) {
+      user.coupangCredentials.validated = validated;
+      if (validated) {
+        user.coupangCredentials.validatedAt = new Date();
+      }
+      await user.save();
+    }
+    
+    res.json({
+      success: true,
+      message: 'Validation status updated',
+    });
+  } catch (error) {
+    console.error('Update validation status error:', error);
+    res.status(500).json({ error: 'Failed to update validation status' });
+  }
+});
+
+// PUT /api/auth/settings/wing - Save Wing settings
+router.put('/settings/wing', authenticate, async (req: Request, res: Response) => {
+  try {
+    const wingSettings = req.body;
+    
+    const user = await User.findById(req.user!._id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    
+    user.wingSettings = {
+      returnCenterCode: wingSettings.returnCenterCode || '',
+      returnChargeName: wingSettings.returnChargeName || '',
+      companyContactNumber: wingSettings.companyContactNumber || '',
+      returnZipCode: wingSettings.returnZipCode || '',
+      returnAddress: wingSettings.returnAddress || '',
+      returnAddressDetail: wingSettings.returnAddressDetail || '',
+      outboundShippingPlaceCode: wingSettings.outboundShippingPlaceCode || '',
+      deliveryCompanyCode: wingSettings.deliveryCompanyCode || '',
+      countryCode: wingSettings.countryCode || '',
+      vendorUserId: wingSettings.vendorUserId || '',
+      deliveryChargeOnReturn: wingSettings.deliveryChargeOnReturn || 2500,
+      returnCharge: wingSettings.returnCharge || 2500,
+    };
+    
+    await user.save();
+    
+    res.json({
+      success: true,
+      message: 'Wing settings saved successfully',
+    });
+  } catch (error) {
+    console.error('Save wing settings error:', error);
+    res.status(500).json({ error: 'Failed to save wing settings' });
+  }
+});
+
+// PUT /api/auth/settings/onboarding - Mark onboarding as completed
+router.put('/settings/onboarding', authenticate, async (req: Request, res: Response) => {
+  try {
+    const { completed } = req.body;
+    
+    await User.findByIdAndUpdate(req.user!._id, {
+      onboardingCompleted: completed,
+    });
+    
+    res.json({
+      success: true,
+      message: 'Onboarding status updated',
+    });
+  } catch (error) {
+    console.error('Update onboarding status error:', error);
+    res.status(500).json({ error: 'Failed to update onboarding status' });
+  }
+});
+
 export default router;
