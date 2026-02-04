@@ -36,10 +36,10 @@ router.post('/', async (req: Request, res: Response) => {
       return res.json({ success: false, error: 'Translation service not configured' });
     }
 
-    // Use Gemma 2B model - higher rate limits (14,400 RPD) compared to Gemini Flash
-    const gemmaApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-2-9b-it:generateContent?key=${geminiApiKey}`;
+    // Use Gemma 3 27B model - highest quality with 14.4K RPD, 30 RPM
+    const gemmaApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${geminiApiKey}`;
     
-    console.log('[Translate] Using Gemma 2B model for translation');
+    console.log('[Translate] Using Gemma 3 27B model for high-quality translation');
 
     const translatedProducts = [];
 
