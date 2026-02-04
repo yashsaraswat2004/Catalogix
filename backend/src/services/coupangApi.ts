@@ -925,64 +925,60 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     console.log(`[Attributes] Mandatory: ${attrName}=${value}`);
   }
 
-  // MANDATORY ATTRIBUTES FALLBACK - Always ensure these critical attributes exist
-  // These are required by most categories even if metadata doesn't specify them
+  // MANDATORY ATTRIBUTES - Add required attributes with SMART defaults
+  // Priority: Explicit CSV values > Extracted from name > Reasonable defaults (only for quantity)
   
-  // 1. Ensure 수량 (quantity) exists
+  // 1. Ensure 수량 (quantity) exists - Safe to default to 1개
   const hasQuantity = attributes.some(a => a.attributeTypeName?.includes('수량'));
   if (!hasQuantity) {
-    // Use explicit quantity from product data if provided
     const explicitQty = product.quantity;
     const qtyValue = explicitQty || extractQuantityFromText(combined) || '1개';
     attributes.push({
       attributeTypeName: "수량",
       attributeValueName: qtyValue
     });
-    console.log(`[Attributes] Added mandatory 수량=${qtyValue}${explicitQty ? ' (from CSV)' : ''}`);
+    console.log(`[Attributes] Added 수량=${qtyValue}${explicitQty ? ' (from CSV)' : ''}`);
   }
 
-  // 2. Ensure EITHER 개당 용량 OR 개당 중량 exists (not both!)
+  // 2. Ensure EITHER 개당 용량 OR 개당 중량 exists
   const hasVolume = attributes.some(a => a.attributeTypeName?.includes('용량'));
   const hasWeight = attributes.some(a => a.attributeTypeName?.includes('중량'));
   
   if (!hasVolume && !hasWeight) {
-    // Priority: Explicit values from CSV > Extracted from name > Default fallback
     const explicitVolume = product.volume;
     const explicitWeight = product.weight;
+    const extractedVolume = extractVolumeFromText(productName);
     
     if (explicitVolume) {
-      // Use explicit volume from CSV
+      // User provided volume in CSV - use it
       attributes.push({
         attributeTypeName: "개당 용량",
         attributeValueName: explicitVolume
       });
-      console.log(`[Attributes] Added 개당 용량=${explicitVolume} (from CSV)`);
+      console.log(`[Attributes] Added 개당 용량=${explicitVolume} (from CSV column)`);
     } else if (explicitWeight) {
-      // Use explicit weight from CSV
+      // User provided weight in CSV - use it
       attributes.push({
         attributeTypeName: "개당 중량",
         attributeValueName: explicitWeight
       });
-      console.log(`[Attributes] Added 개당 중량=${explicitWeight} (from CSV)`);
+      console.log(`[Attributes] Added 개당 중량=${explicitWeight} (from CSV column)`);
+    } else if (extractedVolume) {
+      // Found volume in product name - safe to extract
+      attributes.push({
+        attributeTypeName: "개당 용량",
+        attributeValueName: extractedVolume
+      });
+      console.log(`[Attributes] Added 개당 용량=${extractedVolume} (auto-extracted from product name)`);
     } else {
-      // Try to extract volume from product name (e.g., "200ml", "1L", "500ML")
-      const extractedVolume = extractVolumeFromText(productName);
-      
-      if (extractedVolume) {
-        // If we found volume in the product name, use it
-        attributes.push({
-          attributeTypeName: "개당 용량",
-          attributeValueName: extractedVolume
-        });
-        console.log(`[Attributes] Added 개당 용량=${extractedVolume} (extracted from name)`);
-      } else {
-        // Otherwise, default to weight with 100g
-        attributes.push({
-          attributeTypeName: "개당 중량",
-          attributeValueName: "100g"
-        });
-        console.log(`[Attributes] Added fallback 개당 중량=100g`);
-      }
+      // NO DATA AVAILABLE - Log warning
+      console.log(`[Attributes] WARNING: No volume/weight data found. Product name: "${productName}". User should add 'volume' or 'weight' column to CSV.`);
+      // Last resort: Add a minimal default to prevent hard failure, but log it clearly
+      attributes.push({
+        attributeTypeName: "개당 중량",
+        attributeValueName: "상세페이지 참조"
+      });
+      console.log(`[Attributes] Added fallback 개당 중량=상세페이지 참조 (USER SHOULD FIX THIS)`);
     }
   }
 
@@ -1078,15 +1074,20 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
   }
 
   const contents: any[] = [];
-  if (product.detailedDescription) {
+  if (product.detailedDescription && product.detailedDescription.trim()) {
     const isHtml = /<[^>]+>/.test(product.detailedDescription);
+    const cleanContent = product.detailedDescription.trim();
+    
     contents.push({
       contentsType: isHtml ? "HTML" : "TEXT",
       contentDetails: [{
-        content: product.detailedDescription,
+        content: cleanContent,
         detailType: "TEXT"
       }]
     });
+    console.log(`[Transform] Added content: ${cleanContent.substring(0, 100)}...`);
+  } else {
+    console.log(`[Transform] WARNING: No detailed description provided - validation should have caught this`);
   }
 
   const searchTags: string[] = [];
@@ -1197,13 +1198,7 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     vendorUserId: wingSettings.vendorUserId || "",
     requested: true,
     items: [item],
-    contents: contents.length > 0 ? contents : [{
-      contentsType: "TEXT",
-      contentDetails: [{
-        content: product.productName || "Product",
-        detailType: "TEXT"
-      }]
-    }],
+    contents: contents,
     requiredDocuments: [],
     extraInfoMessage: "",
     manufacture: product.manufacturer || product.brand || "",
@@ -1218,19 +1213,35 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
 export function validateProductForUpload(product: any, wingSettings: any): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
+  // Required basic fields
   if (!product.category) errors.push("Category is required");
-  if (!product.productName) errors.push("Product name is required");
+  if (!product.productName || product.productName.trim().length < 3) errors.push("Product name is required (minimum 3 characters)");
   if (!product.salePrice || product.salePrice <= 0) errors.push("Sale price must be greater than 0");
   if (!product.discountBasePrice || product.discountBasePrice <= 0) errors.push("Discount base price must be greater than 0");
   if (!product.stockQuantity || product.stockQuantity <= 0) errors.push("Stock quantity must be greater than 0");
   if (!product.leadTime || product.leadTime < 1) errors.push("Lead time must be at least 1 day");
   if (!product.mainImage) errors.push("Main image URL is required");
-  if (!product.detailedDescription) errors.push("Detailed description is required");
-  if (!product.brand) errors.push("Brand is required");
-  if (!product.manufacturer) errors.push("Manufacturer is required");
+  if (!product.brand || product.brand.trim().length < 2) errors.push("Brand is required (minimum 2 characters)");
+  if (!product.manufacturer || product.manufacturer.trim().length < 2) errors.push("Manufacturer is required (minimum 2 characters)");
 
+  // Detailed description - CRITICAL for product content
+  if (!product.detailedDescription || product.detailedDescription.trim().length < 20) {
+    errors.push("Detailed description is required (minimum 20 characters). Add product details, features, and usage information.");
+  }
+
+  // Image URL validation
   if (product.mainImage && !product.mainImage.startsWith('http')) {
     errors.push("Main image must be a valid URL starting with http:// or https://");
+  }
+  
+  // Required attributes validation for common categories
+  const productName = product.productName?.toLowerCase() || '';
+  const hasVolumeInName = /\d+\s*(ml|l|밀리|리터)/i.test(productName);
+  const hasWeightInName = /\d+\s*(g|kg|그램|킬로)/i.test(productName);
+  
+  // If no volume/weight in name and not provided explicitly, warn user
+  if (!hasVolumeInName && !hasWeightInName && !product.volume && !product.weight) {
+    errors.push("Volume or Weight is required. Add 'volume' column (e.g., 200ml) or 'weight' column (e.g., 100g) to your Excel, or include it in the product name.");
   }
 
   if (!wingSettings.returnCenterCode) errors.push("Return Center Code is required (from Wing settings)");
