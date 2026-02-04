@@ -939,24 +939,29 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     console.log(`[Attributes] Added default 수량=${qtyValue}`);
   }
 
-  // FALLBACK: For categories that require 수량, 개당 중량, 개당 용량 (like shampoo/cosmetics)
-  // Add these mandatory attributes if not already present
-  const requiredFallbackAttrs = [
-    { name: '수량', value: '1개' },
-    { name: '개당 중량', value: '상세페이지 참조' },
-    { name: '개당 용량', value: extractVolumeFromText(productName) || '상세페이지 참조' }
-  ];
-
-  for (const fallback of requiredFallbackAttrs) {
-    const hasAttr = attributes.some(a =>
-      a.attributeTypeName === fallback.name
-    );
-    if (!hasAttr) {
+  // CRITICAL FIX: 개당 용량 and 개당 중량 are in the same bundle group (groupNumber=1)
+  // We can ONLY add ONE of them, not both. Prefer volume if extractable, otherwise weight.
+  const hasVolume = attributes.some(a => a.attributeTypeName?.includes('용량'));
+  const hasWeight = attributes.some(a => a.attributeTypeName?.includes('중량'));
+  
+  // Only add if neither volume nor weight is present AND it's valid for this category
+  if (!hasVolume && !hasWeight) {
+    const extractedVolume = extractVolumeFromText(productName);
+    
+    if (extractedVolume && validAttrNames.has('개당 용량')) {
+      // Prefer volume if we can extract it
       attributes.push({
-        attributeTypeName: fallback.name,
-        attributeValueName: fallback.value
+        attributeTypeName: "개당 용량",
+        attributeValueName: extractedVolume
       });
-      console.log(`[Attributes] Fallback added: ${fallback.name}=${fallback.value}`);
+      console.log(`[Attributes] Added 개당 용량=${extractedVolume} (extracted from product name)`);
+    } else if (validAttrNames.has('개당 중량')) {
+      // Fallback to weight with a numeric value (100g as default)
+      attributes.push({
+        attributeTypeName: "개당 중량",
+        attributeValueName: "100g"
+      });
+      console.log(`[Attributes] Added fallback 개당 중량=100g`);
     }
   }
 
@@ -1094,7 +1099,12 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
   // Clean and validate barcode - extracts ASIN from Amazon URLs or validates format
   const validBarcode = cleanBarcode(product.barcode);
 
+  // Generate unique vendorItemId - required by Coupang to identify purchasable SKU
+  const timestamp = Date.now();
+  const vendorItemId = product.vendorProductCode || `SKU-${timestamp}-${Math.random().toString(36).substring(2, 9)}`;
+
   const item: any = {
+    vendorItemId: vendorItemId,  // REQUIRED: Unique identifier for this purchasable SKU
     itemName: (product.productName || "Product").substring(0, 150),
     originalPrice: Math.round(product.discountBasePrice || product.salePrice || 0),
     salePrice: Math.round(product.salePrice || 0),
@@ -1117,16 +1127,11 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     searchTags: searchTags,
     images: images,
     attributes: attributes,
-    contents: contents.length > 0 ? contents : [{
-      contentsType: "TEXT",
-      contentDetails: [{
-        content: product.productName || "Product",
-        detailType: "TEXT"
-      }]
-    }],
     offerCondition: "NEW",
     offerDescription: ""
   };
+  
+  console.log(`[Transform] Created item with vendorItemId: ${vendorItemId}`);
 
   if (Array.isArray(notices) && notices.length > 0) {
     item.notices = notices;
@@ -1169,6 +1174,13 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     vendorUserId: wingSettings.vendorUserId || "",
     requested: true,
     items: [item],
+    contents: contents.length > 0 ? contents : [{
+      contentsType: "TEXT",
+      contentDetails: [{
+        content: product.productName || "Product",
+        detailType: "TEXT"
+      }]
+    }],
     requiredDocuments: [],
     extraInfoMessage: "",
     manufacture: product.manufacturer || product.brand || "",
