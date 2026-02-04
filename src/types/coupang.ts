@@ -137,6 +137,11 @@ export interface CoupangProduct {
   optionType4: string;
   optionValue4: string;
 
+  // Required Attributes (개당 용량, 개당 중량, 수량)
+  quantity?: string;        // 수량 (e.g., "1개", "2개")
+  volume?: string;          // 개당 용량 (e.g., "200ml", "1L")
+  weight?: string;          // 개당 중량 (e.g., "100g", "1kg")
+
   // Search Options
   searchOptionType1: string;
   searchOptionValue1: string;

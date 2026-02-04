@@ -30,7 +30,6 @@ export const ENGLISH_COLUMN_MAPPING: Record<string, keyof CoupangProduct> = {
   'stock': 'stockQuantity',
   'stock quantity': 'stockQuantity',
   'stock_quantity': 'stockQuantity',
-  'quantity': 'stockQuantity',
   'inventory': 'stockQuantity',
   
   // Shipping
@@ -62,6 +61,19 @@ export const ENGLISH_COLUMN_MAPPING: Record<string, keyof CoupangProduct> = {
   'tags': 'searchKeywords',
   
   // Options
+  // Required Attributes
+  'quantity': 'quantity',
+  'qty': 'quantity',
+  '수량': 'quantity',
+  'volume': 'volume',
+  'capacity': 'volume',
+  '용량': 'volume',
+  '개당 용량': 'volume',
+  'weight': 'weight',
+  'wt': 'weight',
+  '중량': 'weight',
+  '개당 중량': 'weight',
+
   'option type 1': 'optionType1',
   'option_type_1': 'optionType1',
   'option1 type': 'optionType1',
@@ -230,6 +242,11 @@ function parseRowWithMapping(
     brand: getValue('brand'),
     manufacturer: getValue('manufacturer'),
     searchKeywords: getValue('searchKeywords'),
+    
+    // Required Attributes
+    quantity: getValue('quantity'),
+    volume: getValue('volume'),
+    weight: getValue('weight'),
     
     optionType1: getValue('optionType1'),
     optionValue1: getValue('optionValue1'),

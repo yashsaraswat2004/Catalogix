@@ -925,43 +925,64 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     console.log(`[Attributes] Mandatory: ${attrName}=${value}`);
   }
 
-  // Always ensure 수량 (quantity) is present if it's a valid attribute for this category
-  const hasQuantity = attributes.some(a =>
-    a.attributeTypeName?.includes('수량')
-  );
-
-  if (!hasQuantity && validAttrNames.has('수량')) {
-    const qtyValue = extractQuantityFromText(combined) || '1개';
+  // MANDATORY ATTRIBUTES FALLBACK - Always ensure these critical attributes exist
+  // These are required by most categories even if metadata doesn't specify them
+  
+  // 1. Ensure 수량 (quantity) exists
+  const hasQuantity = attributes.some(a => a.attributeTypeName?.includes('수량'));
+  if (!hasQuantity) {
+    // Use explicit quantity from product data if provided
+    const explicitQty = product.quantity;
+    const qtyValue = explicitQty || extractQuantityFromText(combined) || '1개';
     attributes.push({
       attributeTypeName: "수량",
       attributeValueName: qtyValue
     });
-    console.log(`[Attributes] Added default 수량=${qtyValue}`);
+    console.log(`[Attributes] Added mandatory 수량=${qtyValue}${explicitQty ? ' (from CSV)' : ''}`);
   }
 
-  // CRITICAL FIX: 개당 용량 and 개당 중량 are in the same bundle group (groupNumber=1)
-  // We can ONLY add ONE of them, not both. Prefer volume if extractable, otherwise weight.
+  // 2. Ensure EITHER 개당 용량 OR 개당 중량 exists (not both!)
   const hasVolume = attributes.some(a => a.attributeTypeName?.includes('용량'));
   const hasWeight = attributes.some(a => a.attributeTypeName?.includes('중량'));
   
-  // Only add if neither volume nor weight is present AND it's valid for this category
   if (!hasVolume && !hasWeight) {
-    const extractedVolume = extractVolumeFromText(productName);
+    // Priority: Explicit values from CSV > Extracted from name > Default fallback
+    const explicitVolume = product.volume;
+    const explicitWeight = product.weight;
     
-    if (extractedVolume && validAttrNames.has('개당 용량')) {
-      // Prefer volume if we can extract it
+    if (explicitVolume) {
+      // Use explicit volume from CSV
       attributes.push({
         attributeTypeName: "개당 용량",
-        attributeValueName: extractedVolume
+        attributeValueName: explicitVolume
       });
-      console.log(`[Attributes] Added 개당 용량=${extractedVolume} (extracted from product name)`);
-    } else if (validAttrNames.has('개당 중량')) {
-      // Fallback to weight with a numeric value (100g as default)
+      console.log(`[Attributes] Added 개당 용량=${explicitVolume} (from CSV)`);
+    } else if (explicitWeight) {
+      // Use explicit weight from CSV
       attributes.push({
         attributeTypeName: "개당 중량",
-        attributeValueName: "100g"
+        attributeValueName: explicitWeight
       });
-      console.log(`[Attributes] Added fallback 개당 중량=100g`);
+      console.log(`[Attributes] Added 개당 중량=${explicitWeight} (from CSV)`);
+    } else {
+      // Try to extract volume from product name (e.g., "200ml", "1L", "500ML")
+      const extractedVolume = extractVolumeFromText(productName);
+      
+      if (extractedVolume) {
+        // If we found volume in the product name, use it
+        attributes.push({
+          attributeTypeName: "개당 용량",
+          attributeValueName: extractedVolume
+        });
+        console.log(`[Attributes] Added 개당 용량=${extractedVolume} (extracted from name)`);
+      } else {
+        // Otherwise, default to weight with 100g
+        attributes.push({
+          attributeTypeName: "개당 중량",
+          attributeValueName: "100g"
+        });
+        console.log(`[Attributes] Added fallback 개당 중량=100g`);
+      }
     }
   }
 
