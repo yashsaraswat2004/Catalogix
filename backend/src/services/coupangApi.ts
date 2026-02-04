@@ -1099,12 +1099,14 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
   // Clean and validate barcode - extracts ASIN from Amazon URLs or validates format
   const validBarcode = cleanBarcode(product.barcode);
 
-  // Generate unique vendorItemId - required by Coupang to identify purchasable SKU
+  // Generate unique vendorItemId - MUST be a numeric Long value (not string!)
+  // Use timestamp + random number to ensure uniqueness
   const timestamp = Date.now();
-  const vendorItemId = product.vendorProductCode || `SKU-${timestamp}-${Math.random().toString(36).substring(2, 9)}`;
+  const randomSuffix = Math.floor(Math.random() * 1000);
+  const vendorItemId = parseInt(`${timestamp}${randomSuffix}`);
 
   const item: any = {
-    vendorItemId: vendorItemId,  // REQUIRED: Unique identifier for this purchasable SKU
+    vendorItemId: vendorItemId,  // REQUIRED: Unique numeric identifier for this purchasable SKU
     itemName: (product.productName || "Product").substring(0, 150),
     originalPrice: Math.round(product.discountBasePrice || product.salePrice || 0),
     salePrice: Math.round(product.salePrice || 0),
@@ -1118,7 +1120,7 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     parallelImported: product.parallelImport ? "PARALLEL_IMPORTED" : "NOT_PARALLEL_IMPORTED",
     overseasPurchased: isOverseasProduct ? "OVERSEAS_PURCHASED" : "NOT_OVERSEAS_PURCHASED",
     pccNeeded: isOverseasProduct,
-    externalVendorSku: product.vendorProductCode || "",
+    externalVendorSku: product.vendorProductCode || `SKU-${vendorItemId}`,
     barcode: validBarcode,
     emptyBarcode: !validBarcode,
     emptyBarcodeReason: !validBarcode ? "상품확인불가_바코드없음사유" : "",
