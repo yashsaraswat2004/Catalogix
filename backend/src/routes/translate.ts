@@ -36,7 +36,10 @@ router.post('/', async (req: Request, res: Response) => {
       return res.json({ success: false, error: 'Translation service not configured' });
     }
 
-    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+    // Use Gemma 2B model - higher rate limits (14,400 RPD) compared to Gemini Flash
+    const gemmaApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-2-9b-it:generateContent?key=${geminiApiKey}`;
+    
+    console.log('[Translate] Using Gemma 2B model for translation');
 
     const translatedProducts = [];
 
@@ -90,7 +93,7 @@ Respond ONLY with a JSON object mapping field names to translated Korean text. E
 Do not include any explanation, just the JSON object.`;
 
       try {
-        const response = await fetch(geminiApiUrl, {
+        const response = await fetch(gemmaApiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -106,9 +109,9 @@ Do not include any explanation, just the JSON object.`;
               }
             ],
             generationConfig: {
-              temperature: 0.3,
-              topK: 40,
-              topP: 0.95,
+              temperature: 0.2,
+              topK: 32,
+              topP: 0.9,
               maxOutputTokens: 2048,
             }
           }),
@@ -116,7 +119,13 @@ Do not include any explanation, just the JSON object.`;
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`[Translate] Gemini API error: ${response.status}`, errorText);
+          console.error(`[Translate] Gemma API error: ${response.status}`, errorText);
+          
+          // If rate limit exceeded, return helpful message
+          if (response.status === 429) {
+            console.error('[Translate] Rate limit exceeded - consider upgrading API plan');
+          }
+          
           translatedProducts.push(product);
           continue;
         }
