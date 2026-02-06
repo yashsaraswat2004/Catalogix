@@ -80,36 +80,36 @@ export interface IPriceCalculation {
 export interface IRepricingItem extends Document {
   jobId: mongoose.Types.ObjectId;                    // Reference to parent job
   vendorId: string;                                  // Seller vendor ID
-  
+
   // Product identification (flexible for future)
   identifierType: ProductIdentifier;                 // How product is identified
   identifierValue: string;                           // The actual ID value
-  
+
   // Coupang IDs (resolved during validation)
   sellerProductId?: string;                          // Resolved seller product ID
   vendorItemId?: string;                             // Resolved vendor item ID
   itemId?: string;                                   // Resolved Coupang item ID
-  
+
   // Product info (for display)
   productName?: string;                              // Product name
-  
+
   // Repricing rule (from CSV)
   strategy: RepricingStrategy;                       // Pricing strategy
   ruleValue?: number;                                // Percentage or amount (if applicable)
-  
+
   // Price calculation
   priceCalculation?: IPriceCalculation;              // Calculated prices & audit trail
-  
+
   // Status & errors
   status: RepricingItemStatus;                       // Current status
   validationErrors: string[];                        // Validation errors
   executionError?: string;                           // Execution error (if any)
-  
+
   // Timestamps
   validatedAt?: Date;                                // When validated
   previewGeneratedAt?: Date;                         // When preview generated
   executedAt?: Date;                                 // When price updated
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -120,40 +120,40 @@ export interface IRepricingItem extends Document {
 export interface IRepricingJob extends Document {
   vendorId: string;                                  // Seller vendor ID
   userId: mongoose.Types.ObjectId;                   // User who created job
-  
+
   // Job metadata
   filename: string;                                  // Uploaded CSV filename
   totalItems: number;                                // Total items in CSV
-  
+
   // Status counters
   validatedItems: number;                            // Successfully validated
   failedValidationItems: number;                     // Failed validation
   successfulItems: number;                           // Successfully repriced
   failedItems: number;                               // Failed repricing
   skippedItems: number;                              // Skipped (no change)
-  
+
   // Job status
   status: RepricingJobStatus;                        // Overall job status
-  
+
   // Preview & approval
   previewGeneratedAt?: Date;                         // When preview was generated
   approvedAt?: Date;                                 // When user approved
   approvedBy?: mongoose.Types.ObjectId;              // User who approved
-  
+
   // Execution tracking
   executionStartedAt?: Date;                         // When execution started
   executionCompletedAt?: Date;                       // When execution completed
-  
+
   // Error tracking
   globalErrors: string[];                            // Job-level errors
-  
+
   // Settings snapshot (for audit)
   settingsSnapshot?: {
     minPrice?: number;                               // Minimum price guardrail
     maxPriceChange?: number;                         // Max price change allowed
     rateLimit?: number;                              // API rate limit (requests/sec)
   };
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -164,10 +164,10 @@ export interface IRepricingJob extends Document {
 
 const PriceCalculationSchema = new Schema({
   oldPrice: { type: Number, required: true },
-  strategy: { 
-    type: String, 
-    enum: Object.values(RepricingStrategy), 
-    required: true 
+  strategy: {
+    type: String,
+    enum: Object.values(RepricingStrategy),
+    required: true
   },
   ruleValue: { type: Number },
   calculatedPrice: { type: Number, required: true },
@@ -177,14 +177,14 @@ const PriceCalculationSchema = new Schema({
 }, { _id: false });
 
 const RepricingItemSchema: Schema = new Schema({
-  jobId: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'RepricingJob', 
-    required: true, 
-    index: true 
+  jobId: {
+    type: Schema.Types.ObjectId,
+    ref: 'RepricingJob',
+    required: true,
+    index: true
   },
   vendorId: { type: String, required: true, index: true },
-  
+
   // Product identification
   identifierType: {
     type: String,
@@ -193,14 +193,14 @@ const RepricingItemSchema: Schema = new Schema({
     default: ProductIdentifier.SELLER_PRODUCT_ID
   },
   identifierValue: { type: String, required: true },
-  
+
   // Resolved IDs
   sellerProductId: { type: String, index: true },
-  vendorItemId: { type: String, index: true },
+  vendorItemId: { type: String },
   itemId: { type: String, index: true },
-  
+
   productName: { type: String },
-  
+
   // Repricing rule
   strategy: {
     type: String,
@@ -208,10 +208,10 @@ const RepricingItemSchema: Schema = new Schema({
     required: true
   },
   ruleValue: { type: Number },
-  
+
   // Price calculation
   priceCalculation: { type: PriceCalculationSchema },
-  
+
   // Status
   status: {
     type: String,
@@ -221,7 +221,7 @@ const RepricingItemSchema: Schema = new Schema({
   },
   validationErrors: [{ type: String }],
   executionError: { type: String },
-  
+
   // Timestamps
   validatedAt: { type: Date },
   previewGeneratedAt: { type: Date },
@@ -232,41 +232,41 @@ const RepricingItemSchema: Schema = new Schema({
 
 const RepricingJobSchema: Schema = new Schema({
   vendorId: { type: String, required: true, index: true },
-  userId: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true, 
-    index: true 
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
   },
-  
+
   filename: { type: String, required: true },
   totalItems: { type: Number, required: true, default: 0 },
-  
+
   // Counters
   validatedItems: { type: Number, default: 0 },
   failedValidationItems: { type: Number, default: 0 },
   successfulItems: { type: Number, default: 0 },
   failedItems: { type: Number, default: 0 },
   skippedItems: { type: Number, default: 0 },
-  
+
   status: {
     type: String,
     enum: Object.values(RepricingJobStatus),
     default: RepricingJobStatus.UPLOADED,
     index: true
   },
-  
+
   // Preview & approval
   previewGeneratedAt: { type: Date },
   approvedAt: { type: Date },
   approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
-  
+
   // Execution
   executionStartedAt: { type: Date },
   executionCompletedAt: { type: Date },
-  
+
   globalErrors: [{ type: String }],
-  
+
   settingsSnapshot: {
     minPrice: { type: Number },
     maxPriceChange: { type: Number },

@@ -24,23 +24,29 @@ export const generateToken = (userId: string): string => {
 
 // Set token as httpOnly cookie (more secure than localStorage)
 export const setTokenCookie = (res: Response, token: string): void => {
+  const isProduction = process.env.NODE_ENV === 'production';
+
   res.cookie('token', token, {
     httpOnly: true, // Cannot be accessed by JavaScript (prevents XSS)
-    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-    sameSite: 'lax', // CSRF protection
+    secure: isProduction, // HTTPS only in production (required for sameSite: 'none')
+    sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin in production
     maxAge: COOKIE_MAX_AGE,
     path: '/',
+    ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
   });
 };
 
 // Clear token cookie
 export const clearTokenCookie = (res: Response): void => {
+  const isProduction = process.env.NODE_ENV === 'production';
+
   res.cookie('token', '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     expires: new Date(0),
     path: '/',
+    ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
   });
 };
 
@@ -62,7 +68,7 @@ export const authenticate = async (
   try {
     // Get token from cookie or Authorization header
     let token = req.cookies?.token;
-    
+
     // Fallback to Authorization header for API clients
     if (!token && req.headers.authorization?.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
@@ -106,7 +112,7 @@ export const optionalAuth = async (
 ): Promise<void> => {
   try {
     let token = req.cookies?.token;
-    
+
     if (!token && req.headers.authorization?.startsWith('Bearer ')) {
       token = req.headers.authorization.split(' ')[1];
     }

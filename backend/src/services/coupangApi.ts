@@ -1,4 +1,5 @@
 import { generateHmacSignature } from './hmacSignature';
+import { sanitizeProductPayload, logAttributeValidation } from '../utils/encodingUtils';
 
 const COUPANG_API_BASE = 'https://api-gateway.coupang.com';
 const COUPANG_PROXY_URL = process.env.COUPANG_PROXY_URL;
@@ -51,7 +52,7 @@ async function callCoupangApi(
     } catch (error) {
       clearTimeout(timeoutId);
       console.error('[API] Proxy connection failed:', error);
-      
+
       // Provide more helpful error messages
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
@@ -375,7 +376,7 @@ function extractCountFromText(text: string, patterns: string[]): string | null {
   if (lMatch) {
     return `${lMatch[1]}정`;
   }
-  
+
   for (const pattern of patterns) {
     const regex = new RegExp(`(\\d+)\\s*${pattern}s?`, 'i');
     const match = text.match(regex);
@@ -483,11 +484,11 @@ function normalizeUnit(unit: string): string {
 // Validate and fix value to match usableUnits
 function validateValueWithUnits(value: string, usableUnits: string[]): string | null {
   if (!value || !usableUnits || usableUnits.length === 0) return value;
-  
+
   // Extract number and unit from value
   const match = value.match(/^([\d.]+)\s*(.*)$/);
   if (!match) return value;
-  
+
   const [, number, unit] = match;
   if (!unit) {
     // No unit provided, try to add the first usable unit
@@ -496,21 +497,21 @@ function validateValueWithUnits(value: string, usableUnits: string[]): string | 
     }
     return value;
   }
-  
+
   const normalizedUnit = normalizeUnit(unit);
-  
+
   // Check if normalized unit is in usableUnits
   if (usableUnits.includes(normalizedUnit)) {
     return `${number}${normalizedUnit}`;
   }
-  
+
   // Try to find a matching unit
   for (const usableUnit of usableUnits) {
     if (normalizedUnit === normalizeUnit(usableUnit)) {
       return `${number}${usableUnit}`;
     }
   }
-  
+
   // Unit not found in usableUnits, use the first usable unit
   console.log(`[ValidateUnits] Unit "${unit}" not in usableUnits [${usableUnits.join(', ')}], using ${usableUnits[0]}`);
   return `${number}${usableUnits[0]}`;
@@ -519,24 +520,24 @@ function validateValueWithUnits(value: string, usableUnits: string[]): string | 
 // Check if value exists in predefined values list
 function findMatchingPredefinedValue(value: string, predefinedValues: string[]): string | null {
   if (!predefinedValues || predefinedValues.length === 0) return null;
-  
+
   const normalizedValue = value.toLowerCase().trim();
-  
+
   // Exact match
   for (const predefined of predefinedValues) {
     if (predefined.toLowerCase().trim() === normalizedValue) {
       return predefined;
     }
   }
-  
+
   // Partial match
   for (const predefined of predefinedValues) {
-    if (predefined.toLowerCase().includes(normalizedValue) || 
-        normalizedValue.includes(predefined.toLowerCase())) {
+    if (predefined.toLowerCase().includes(normalizedValue) ||
+      normalizedValue.includes(predefined.toLowerCase())) {
       return predefined;
     }
   }
-  
+
   return null;
 }
 
@@ -596,7 +597,7 @@ function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | nu
       const hasMatch = config.patterns.some(pattern => combined.includes(pattern));
       if (hasMatch) {
         let value = config.extractor(product, combined);
-        
+
         // Validate against predefined values
         if (predefinedValues.length > 0) {
           const matched = findMatchingPredefinedValue(value || '', predefinedValues);
@@ -606,7 +607,7 @@ function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | nu
         else if (value && usableUnits.length > 0) {
           value = validateValueWithUnits(value, usableUnits) || value;
         }
-        
+
         return {
           attributeTypeName: typeName.substring(0, 25),
           attributeValueName: (value || '상세페이지 참조').substring(0, 30)
@@ -622,7 +623,7 @@ function selectBestAttributeFromGroup(groupAttrs: any[], product: any): any | nu
     const predefinedValues = (firstAttr.attributeValueMetas || []).map((v: any) => v.attributeValueName);
     const config = priorityMap[typeName];
     let value = config ? config.extractor(product, combined) : '상세페이지 참조';
-    
+
     // Validate against predefined values
     if (predefinedValues.length > 0) {
       const matched = findMatchingPredefinedValue(value || '', predefinedValues);
@@ -657,11 +658,11 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
   ].join(' ').toLowerCase();
 
   const combined = `${productName} ${description} ${searchKeywords} ${optionValues}`;
-  
+
   // Get validation constraints
   const usableUnits = attrMeta.usableUnits || [];
   const predefinedValues = (attrMeta.attributeValueMetas || []).map((v: any) => v.attributeValueName);
-  
+
   let extractedValue: string | null = null;
 
   // 수량 (quantity) - extract numeric count
@@ -685,7 +686,7 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
   else if (typeName.includes('캡슐') || typeName.includes('정') || typeName.includes('tablet')) {
     extractedValue = extractCountFromText(combined, ['tablet', 'capsule', '정', '캡슐', 'ct', 'tabs']);
   }
-  
+
   // Validate against predefined values first
   if (predefinedValues.length > 0) {
     if (extractedValue) {
@@ -699,7 +700,7 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
     console.log(`[InferValue] Using first predefined value: ${predefinedValues[0]}`);
     return predefinedValues[0];
   }
-  
+
   // Validate against usableUnits
   if (extractedValue && usableUnits.length > 0) {
     const validated = validateValueWithUnits(extractedValue, usableUnits);
@@ -708,7 +709,7 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
       return validated;
     }
   }
-  
+
   // Return extracted value or fallback
   return extractedValue || '상세페이지 참조';
 }
@@ -792,7 +793,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
 
   // Collect user-provided options - VALIDATE THEM FIRST
   const userProvidedOptions: Array<{ type: string; value: string }> = [];
-  
+
   // Check each option pair and only add if BOTH are valid
   if (!isInvalidAttributeValue(product.optionType1) && !isInvalidAttributeValue(product.optionValue1)) {
     userProvidedOptions.push({ type: product.optionType1.trim(), value: product.optionValue1.trim() });
@@ -800,21 +801,21 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   } else if (product.optionType1 || product.optionValue1) {
     console.log(`[Attributes] Ignoring invalid option 1: type="${product.optionType1}", value="${product.optionValue1}"`);
   }
-  
+
   if (!isInvalidAttributeValue(product.optionType2) && !isInvalidAttributeValue(product.optionValue2)) {
     userProvidedOptions.push({ type: product.optionType2.trim(), value: product.optionValue2.trim() });
     console.log(`[Attributes] User option 2: ${product.optionType2} = ${product.optionValue2}`);
   } else if (product.optionType2 || product.optionValue2) {
     console.log(`[Attributes] Ignoring invalid option 2: type="${product.optionType2}", value="${product.optionValue2}"`);
   }
-  
+
   if (!isInvalidAttributeValue(product.optionType3) && !isInvalidAttributeValue(product.optionValue3)) {
     userProvidedOptions.push({ type: product.optionType3.trim(), value: product.optionValue3.trim() });
     console.log(`[Attributes] User option 3: ${product.optionType3} = ${product.optionValue3}`);
   } else if (product.optionType3 || product.optionValue3) {
     console.log(`[Attributes] Ignoring invalid option 3: type="${product.optionType3}", value="${product.optionValue3}"`);
   }
-  
+
   if (!isInvalidAttributeValue(product.optionType4) && !isInvalidAttributeValue(product.optionValue4)) {
     userProvidedOptions.push({ type: product.optionType4.trim(), value: product.optionValue4.trim() });
     console.log(`[Attributes] User option 4: ${product.optionType4} = ${product.optionValue4}`);
@@ -846,17 +847,17 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   // Try to use user-provided options for mandatory attributes first
   for (const userOption of userProvidedOptions) {
     // Find matching attribute in metadata
-    const matchingAttr = attributeTypeMetas.find((meta: any) => 
+    const matchingAttr = attributeTypeMetas.find((meta: any) =>
       meta.attributeTypeName?.toLowerCase() === userOption.type.toLowerCase() ||
       meta.attributeTypeName?.includes(userOption.type) ||
       userOption.type.includes(meta.attributeTypeName || '')
     );
-    
+
     if (matchingAttr && matchingAttr.required === 'MANDATORY') {
       const usableUnits = matchingAttr.usableUnits || [];
       const predefinedValues = (matchingAttr.attributeValueMetas || []).map((v: any) => v.attributeValueName);
       let finalValue = userOption.value;
-      
+
       // Validate user-provided value
       if (predefinedValues.length > 0) {
         const matched = findMatchingPredefinedValue(finalValue, predefinedValues);
@@ -866,7 +867,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
         finalValue = validateValueWithUnits(finalValue, usableUnits) || finalValue;
         console.log(`[Attributes] User value validated against units: ${finalValue}`);
       }
-      
+
       attributes.push({
         attributeTypeName: matchingAttr.attributeTypeName.substring(0, 25),
         attributeValueName: finalValue.substring(0, 30)
@@ -879,14 +880,14 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   // Process bundle groups - MUST select exactly one from each group
   for (const [groupNum, groupAttrs] of bundleGroups) {
     // Skip if already handled by user options
-    const alreadyUsed = groupAttrs.some((attr: any) => 
+    const alreadyUsed = groupAttrs.some((attr: any) =>
       usedAttrNames.has(attr.attributeTypeName?.toLowerCase())
     );
     if (alreadyUsed) {
       console.log(`[Attributes] Bundle group ${groupNum}: already satisfied by user option`);
       continue;
     }
-    
+
     // Try to find the best match based on product content
     const selectedAttr = selectBestAttributeFromGroup(groupAttrs, product);
     if (selectedAttr) {
@@ -927,7 +928,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
 
   // MANDATORY ATTRIBUTES - Add required attributes with SMART defaults
   // Priority: Explicit CSV values > Extracted from name > Reasonable defaults (only for quantity)
-  
+
   // 1. Ensure 수량 (quantity) exists - Safe to default to 1개
   const hasQuantity = attributes.some(a => a.attributeTypeName?.includes('수량'));
   if (!hasQuantity) {
@@ -943,12 +944,12 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   // 2. Ensure EITHER 개당 용량 OR 개당 중량 exists
   const hasVolume = attributes.some(a => a.attributeTypeName?.includes('용량'));
   const hasWeight = attributes.some(a => a.attributeTypeName?.includes('중량'));
-  
+
   if (!hasVolume && !hasWeight) {
     const explicitVolume = product.volume;
     const explicitWeight = product.weight;
     const extractedVolume = extractVolumeFromText(productName);
-    
+
     if (explicitVolume) {
       // User provided volume in CSV - use it
       attributes.push({
@@ -1077,7 +1078,7 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
   if (product.detailedDescription && product.detailedDescription.trim()) {
     const isHtml = /<[^>]+>/.test(product.detailedDescription);
     const cleanContent = product.detailedDescription.trim();
-    
+
     contents.push({
       contentsType: isHtml ? "HTML" : "TEXT",
       contentDetails: [{
@@ -1154,7 +1155,7 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     offerCondition: "NEW",
     offerDescription: ""
   };
-  
+
   console.log(`[Transform] Created item with vendorItemId: ${vendorItemId}`);
 
   if (Array.isArray(notices) && notices.length > 0) {
@@ -1233,12 +1234,12 @@ export function validateProductForUpload(product: any, wingSettings: any): { val
   if (product.mainImage && !product.mainImage.startsWith('http')) {
     errors.push("Main image must be a valid URL starting with http:// or https://");
   }
-  
+
   // Required attributes validation for common categories
   const productName = product.productName?.toLowerCase() || '';
   const hasVolumeInName = /\d+\s*(ml|l|밀리|리터)/i.test(productName);
   const hasWeightInName = /\d+\s*(g|kg|그램|킬로)/i.test(productName);
-  
+
   // If no volume/weight in name and not provided explicitly, warn user
   if (!hasVolumeInName && !hasWeightInName && !product.volume && !product.weight) {
     errors.push("Volume or Weight is required. Add 'volume' column (e.g., 200ml) or 'weight' column (e.g., 100g) to your Excel, or include it in the product name.");
@@ -1322,14 +1323,19 @@ export async function uploadProduct(
       };
     }
 
-    const payload = transformProductToCoupangFormat(product, vendorId, wingSettings, notices, categoryMeta);
+    const rawPayload = transformProductToCoupangFormat(product, vendorId, wingSettings, notices, categoryMeta);
+
+    // CRITICAL: Sanitize payload to fix encoding corruption and unit mapping
+    // Converts "60 tablet" → "60정", "1ê°" → "1개", etc.
+    const payload = sanitizeProductPayload(rawPayload);
 
     console.log('[Upload] Uploading product:', product.productName);
-    console.log('[Upload] Payload:', JSON.stringify(payload, null, 2).slice(0, 2000));
-    
-    // Log attributes for debugging
+    console.log('[Upload] Sanitized Payload:', JSON.stringify(payload, null, 2).slice(0, 2000));
+
+    // Log attributes for debugging with validation status
     if (payload.items && payload.items[0] && payload.items[0].attributes) {
-      console.log('[Upload] Attributes being sent:', JSON.stringify(payload.items[0].attributes, null, 2));
+      console.log('[Upload] Sanitized attributes being sent:', JSON.stringify(payload.items[0].attributes, null, 2));
+      logAttributeValidation(payload.items[0].attributes, categoryMeta);
     }
 
     /* Refactored to use callCoupangApi */
