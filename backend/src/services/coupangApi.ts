@@ -5,9 +5,64 @@ const COUPANG_API_BASE = 'https://api-gateway.coupang.com';
 const COUPANG_PROXY_URL = process.env.COUPANG_PROXY_URL;
 const COUPANG_PROXY_SECRET = process.env.COUPANG_PROXY_SECRET;
 
+// Retry configuration for transient failures
+const MAX_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 2000; // 2 seconds, doubles each retry
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Check if an error is retryable (transient network issues)
+ */
+function isRetryableError(error: Error): boolean {
+  const message = error.message.toLowerCase();
+  return (
+    error.name === 'AbortError' ||
+    message.includes('timeout') ||
+    message.includes('econnreset') ||
+    message.includes('econnrefused') ||
+    message.includes('socket') ||
+    message.includes('network') ||
+    message.includes('headers_timeout') ||
+    message.includes('und_err')
+  );
+}
+
+/**
+ * Make a single proxy request attempt
+ */
+async function makeProxyRequest(
+  proxyPayload: any,
+  headers: Record<string, string>,
+  timeoutMs: number = 60000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${COUPANG_PROXY_URL}/proxy`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(proxyPayload),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
 /**
  * Unified helper to call Coupang API
  * Routes request through Proxy if configured, otherwise calls directly.
+ * Includes retry logic with exponential backoff for transient failures.
  */
 async function callCoupangApi(
   method: string,
@@ -19,8 +74,6 @@ async function callCoupangApi(
 ): Promise<Response> {
   // Option 1: Use Proxy (checking if configured)
   if (COUPANG_PROXY_URL) {
-    // console.log(`[API] Routing via Proxy: ${COUPANG_PROXY_URL}`); // Optional logging
-
     const proxyPayload = {
       method,
       path,
@@ -36,34 +89,40 @@ async function callCoupangApi(
       headers['x-proxy-secret'] = COUPANG_PROXY_SECRET;
     }
 
-    // Create AbortController for timeout handling (60 seconds)
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    let lastError: Error | null = null;
 
-    try {
-      const response = await fetch(`${COUPANG_PROXY_URL}/proxy`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(proxyPayload),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      return response;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      console.error('[API] Proxy connection failed:', error);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`[API] Proxy request attempt ${attempt}/${MAX_RETRIES}: ${method} ${path}`);
+        const response = await makeProxyRequest(proxyPayload, headers);
 
-      // Provide more helpful error messages
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          throw new Error('Proxy request timed out after 60 seconds. The proxy server may be unresponsive.');
+        // If we get a response (even error codes), return it - let caller handle
+        return response;
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`[API] Proxy attempt ${attempt}/${MAX_RETRIES} failed:`, lastError.message);
+
+        // Check if we should retry
+        if (attempt < MAX_RETRIES && isRetryableError(lastError)) {
+          const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt - 1); // 2s, 4s, 8s
+          console.log(`[API] Retrying in ${delay / 1000}s due to transient error...`);
+          await sleep(delay);
+          continue;
         }
-        if (error.message.includes('HeadersTimeout') || error.message.includes('UND_ERR_HEADERS_TIMEOUT')) {
+
+        // Final attempt or non-retryable error - throw with helpful message
+        if (lastError.name === 'AbortError') {
+          throw new Error(`Proxy request timed out after ${MAX_RETRIES} attempts. The proxy server may be overloaded or unresponsive.`);
+        }
+        if (lastError.message.includes('HeadersTimeout') || lastError.message.includes('UND_ERR_HEADERS_TIMEOUT')) {
           throw new Error('Proxy server did not respond in time. Please check if the Oracle proxy is running.');
         }
+        throw new Error(`Failed to connect to proxy after ${attempt} attempt(s): ${lastError.message}`);
       }
-      throw new Error(`Failed to connect to proxy: ${error instanceof Error ? error.message : String(error)}`);
     }
+
+    // Should not reach here, but just in case
+    throw lastError || new Error('Proxy request failed for unknown reason');
   }
 
   // Option 2: Direct Call (Legacy/Local)
