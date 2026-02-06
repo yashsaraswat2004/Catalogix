@@ -718,20 +718,26 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
 
   const combined = `${productName} ${description} ${searchKeywords} ${optionValues}`;
 
-  // Get validation constraints
+  // Get validation constraints from category metadata
   const usableUnits = attrMeta.usableUnits || [];
   const predefinedValues = (attrMeta.attributeValueMetas || []).map((v: any) => v.attributeValueName);
+
+  console.log(`[InferValue] Attr: ${typeName}, usableUnits: [${usableUnits.join(', ')}], predefinedValues: ${predefinedValues.length}`);
 
   let extractedValue: string | null = null;
 
   // 수량 (quantity) - extract numeric count
   if (typeName.includes('수량') || typeName.includes('quantity')) {
-    extractedValue = extractQuantityFromText(combined) || '1개';
+    extractedValue = extractQuantityFromText(combined);
+    // DO NOT use hardcoded '1개' - let validation handle the unit
+    if (!extractedValue) {
+      extractedValue = '1'; // Just the number, unit will be added from usableUnits
+    }
   }
   // 개당 수량 (per unit count)
   else if (typeName.includes('개당 수량')) {
     const match = combined.match(/(\d+)\s*(bags?|packs?|pieces?|개|팩|ea)/i);
-    extractedValue = match ? `${match[1]}개` : '1개';
+    extractedValue = match ? match[1] : '1'; // Just the number
   }
   // 용량/개당 용량/최소 용량 (volume)
   else if (typeName.includes('용량') || typeName.includes('volume')) {
@@ -746,7 +752,7 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
     extractedValue = extractCountFromText(combined, ['tablet', 'capsule', '정', '캡슐', 'ct', 'tabs']);
   }
 
-  // Validate against predefined values first
+  // PRIORITY 1: If there are predefined values, use them
   if (predefinedValues.length > 0) {
     if (extractedValue) {
       const matched = findMatchingPredefinedValue(extractedValue, predefinedValues);
@@ -760,17 +766,30 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
     return predefinedValues[0];
   }
 
-  // Validate against usableUnits
-  if (extractedValue && usableUnits.length > 0) {
-    const validated = validateValueWithUnits(extractedValue, usableUnits);
-    if (validated) {
-      console.log(`[InferValue] Validated value: ${validated}`);
-      return validated;
+  // PRIORITY 2: Validate against usableUnits - ALWAYS ensure valid unit
+  if (usableUnits.length > 0) {
+    if (extractedValue) {
+      const validated = validateValueWithUnits(extractedValue, usableUnits);
+      if (validated) {
+        console.log(`[InferValue] Validated value: ${validated}`);
+        return validated;
+      }
     }
+    // No extracted value, use first usable unit with default number
+    const defaultValue = `1${usableUnits[0]}`;
+    console.log(`[InferValue] No extraction, using default with first usable unit: ${defaultValue}`);
+    return defaultValue;
   }
 
-  // Return extracted value or fallback
-  return extractedValue || '상세페이지 참조';
+  // PRIORITY 3: Return extracted value if we have it (no constraints)
+  if (extractedValue) {
+    console.log(`[InferValue] Using extracted value (no constraints): ${extractedValue}`);
+    return extractedValue;
+  }
+
+  // FALLBACK: Only when no metadata constraints exist
+  console.log(`[InferValue] No constraints and no extraction, using fallback text`);
+  return '상세페이지 참조';
 }
 
 // English to Korean attribute name mapping for value extraction
@@ -985,60 +1004,99 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     console.log(`[Attributes] Mandatory: ${attrName}=${value}`);
   }
 
-  // MANDATORY ATTRIBUTES - Add required attributes with SMART defaults
-  // Priority: Explicit CSV values > Extracted from name > Reasonable defaults (only for quantity)
+  // IMPORTANT: Only add attributes that EXIST in the category metadata
+  // Do NOT blindly add 수량, 개당 용량, etc. as they may not be valid for this category
 
-  // 1. Ensure 수량 (quantity) exists - Safe to default to 1개
+  // Helper to find attribute in category metadata
+  const findAttrMeta = (name: string): any => {
+    return attributeTypeMetas.find((m: any) =>
+      m.attributeTypeName?.toLowerCase().includes(name.toLowerCase())
+    );
+  };
+
+  // Helper to get valid value for an attribute
+  const getValidValue = (attrMeta: any, extractedValue: string | null, defaultNum: string = '1'): string | null => {
+    if (!attrMeta) return null;
+
+    const predefinedValues = (attrMeta.attributeValueMetas || []).map((v: any) => v.attributeValueName);
+    const usableUnits = attrMeta.usableUnits || [];
+
+    // Priority 1: Match predefined values
+    if (predefinedValues.length > 0) {
+      if (extractedValue) {
+        const matched = predefinedValues.find((pv: string) =>
+          pv.toLowerCase().includes(extractedValue.toLowerCase()) ||
+          extractedValue.toLowerCase().includes(pv.toLowerCase())
+        );
+        if (matched) return matched;
+      }
+      return predefinedValues[0]; // First predefined value
+    }
+
+    // Priority 2: Use usable units
+    if (usableUnits.length > 0) {
+      const num = extractedValue?.match(/(\d+)/)?.[1] || defaultNum;
+      return `${num}${usableUnits[0]}`;
+    }
+
+    // Priority 3: Return extracted value or fallback
+    return extractedValue || '상세페이지 참조';
+  };
+
+  // 1. Add 수량 ONLY if it exists in category metadata
   const hasQuantity = attributes.some(a => a.attributeTypeName?.includes('수량'));
   if (!hasQuantity) {
-    const explicitQty = product.quantity;
-    const qtyValue = explicitQty || extractQuantityFromText(combined) || '1개';
-    attributes.push({
-      attributeTypeName: "수량",
-      attributeValueName: qtyValue
-    });
-    console.log(`[Attributes] Added 수량=${qtyValue}${explicitQty ? ' (from CSV)' : ''}`);
+    const qtyMeta = findAttrMeta('수량');
+    if (qtyMeta) {
+      const explicitQty = product.quantity;
+      const extractedQty = extractQuantityFromText(combined);
+      const qtyValue = getValidValue(qtyMeta, explicitQty || extractedQty);
+      if (qtyValue) {
+        attributes.push({
+          attributeTypeName: qtyMeta.attributeTypeName.substring(0, 25),
+          attributeValueName: qtyValue.substring(0, 30)
+        });
+        console.log(`[Attributes] Added ${qtyMeta.attributeTypeName}=${qtyValue} (validated against category meta)`);
+      }
+    } else {
+      console.log(`[Attributes] Skipping 수량 - not in category metadata`);
+    }
   }
 
-  // 2. Ensure EITHER 개당 용량 OR 개당 중량 exists
+  // 2. Add 개당 용량/중량 ONLY if it exists in category metadata
   const hasVolume = attributes.some(a => a.attributeTypeName?.includes('용량'));
   const hasWeight = attributes.some(a => a.attributeTypeName?.includes('중량'));
 
   if (!hasVolume && !hasWeight) {
+    const volumeMeta = findAttrMeta('용량');
+    const weightMeta = findAttrMeta('중량');
+
     const explicitVolume = product.volume;
     const explicitWeight = product.weight;
     const extractedVolume = extractVolumeFromText(productName);
 
-    if (explicitVolume) {
-      // User provided volume in CSV - use it
-      attributes.push({
-        attributeTypeName: "개당 용량",
-        attributeValueName: explicitVolume
-      });
-      console.log(`[Attributes] Added 개당 용량=${explicitVolume} (from CSV column)`);
-    } else if (explicitWeight) {
-      // User provided weight in CSV - use it
-      attributes.push({
-        attributeTypeName: "개당 중량",
-        attributeValueName: explicitWeight
-      });
-      console.log(`[Attributes] Added 개당 중량=${explicitWeight} (from CSV column)`);
-    } else if (extractedVolume) {
-      // Found volume in product name - safe to extract
-      attributes.push({
-        attributeTypeName: "개당 용량",
-        attributeValueName: extractedVolume
-      });
-      console.log(`[Attributes] Added 개당 용량=${extractedVolume} (auto-extracted from product name)`);
+    if (volumeMeta && (explicitVolume || extractedVolume)) {
+      const volValue = getValidValue(volumeMeta, explicitVolume || extractedVolume);
+      if (volValue) {
+        attributes.push({
+          attributeTypeName: volumeMeta.attributeTypeName.substring(0, 25),
+          attributeValueName: volValue.substring(0, 30)
+        });
+        console.log(`[Attributes] Added ${volumeMeta.attributeTypeName}=${volValue} (validated)`);
+      }
+    } else if (weightMeta && explicitWeight) {
+      const wtValue = getValidValue(weightMeta, explicitWeight);
+      if (wtValue) {
+        attributes.push({
+          attributeTypeName: weightMeta.attributeTypeName.substring(0, 25),
+          attributeValueName: wtValue.substring(0, 30)
+        });
+        console.log(`[Attributes] Added ${weightMeta.attributeTypeName}=${wtValue} (validated)`);
+      }
+    } else if (!volumeMeta && !weightMeta) {
+      console.log(`[Attributes] Skipping volume/weight - not in category metadata`);
     } else {
-      // NO DATA AVAILABLE - Log warning
-      console.log(`[Attributes] WARNING: No volume/weight data found. Product name: "${productName}". User should add 'volume' or 'weight' column to CSV.`);
-      // Last resort: Add a minimal default to prevent hard failure, but log it clearly
-      attributes.push({
-        attributeTypeName: "개당 중량",
-        attributeValueName: "상세페이지 참조"
-      });
-      console.log(`[Attributes] Added fallback 개당 중량=상세페이지 참조 (USER SHOULD FIX THIS)`);
+      console.log(`[Attributes] WARNING: Category supports volume/weight but no data in CSV. Consider adding 'volume' or 'weight' column.`);
     }
   }
 

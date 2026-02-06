@@ -253,15 +253,13 @@ export function sanitizeProductPayload(payload: any): any {
         item.itemName = sanitizeKoreanText(item.itemName);
       }
 
-      // Sanitize and validate attributes - THIS IS CRITICAL
+      // Sanitize attributes - ONLY fix encoding corruption
+      // DO NOT re-map units here - they are already validated by buildAttributesFromCategoryMeta
       if (item.attributes && Array.isArray(item.attributes)) {
         item.attributes = item.attributes.map((attr: any) => {
-          // Fix encoding corruption
+          // Fix encoding corruption ONLY
           const typeName = sanitizeKoreanText(attr.attributeTypeName || '');
-          let valueName = sanitizeKoreanText(attr.attributeValueName || '');
-
-          // Normalize common units to Korean
-          valueName = normalizeAttributeValue(valueName);
+          const valueName = sanitizeKoreanText(attr.attributeValueName || '');
 
           return {
             attributeTypeName: typeName.substring(0, 25),
