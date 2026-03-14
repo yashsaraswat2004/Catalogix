@@ -1,23 +1,23 @@
 import { useState } from 'react';
 import { ParsedProduct, FIELD_LABELS_EN, CoupangProduct, EDITABLE_FIELDS, CoupangApiCredentials } from '@/types/coupang';
 import { revalidateProduct, COLUMN_INDICES } from '@/lib/xlsxParser';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  AlertCircle, 
+import {
+  ChevronDown,
+  ChevronRight,
+  AlertCircle,
   AlertTriangle,
   CheckCircle2,
   Loader2,
@@ -63,6 +63,17 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
 
   const { recommendCategory } = useCoupangApi();
 
+  const variantGroupCounts = products.reduce((acc, product) => {
+    const groupId = product.data.productGroup?.trim();
+    if (groupId) {
+      acc[groupId] = (acc[groupId] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const variantFamilyCount = Object.values(variantGroupCounts).filter(count => count > 1).length;
+  const variantRowCount = Object.values(variantGroupCounts).reduce((sum, count) => sum + count, 0);
+
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(id)) {
@@ -107,19 +118,19 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
 
   const saveEditing = (product: ParsedProduct) => {
     if (!onProductUpdate) return;
-    
+
     const updatedProduct: ParsedProduct = {
       ...product,
       data: { ...product.data, ...editedData },
     };
-    
+
     // Re-validate after edit
     const revalidated = revalidateProduct(updatedProduct);
     onProductUpdate(revalidated);
-    
+
     setEditingProduct(null);
     setEditedData({});
-    
+
     const errorCount = revalidated.validationErrors.filter(e => e.severity === 'error').length;
     if (errorCount === 0) {
       toast.success('Product updated and validated successfully!');
@@ -139,7 +150,7 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
     }
 
     setRecommendingCategory(product.id);
-    
+
     try {
       const result = await recommendCategory(
         credentials,
@@ -153,15 +164,15 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
         if (onProductUpdate) {
           const updatedProduct: ParsedProduct = {
             ...product,
-            data: { 
-              ...product.data, 
-              category: result.categoryCode 
+            data: {
+              ...product.data,
+              category: result.categoryCode
             },
           };
           const revalidated = revalidateProduct(updatedProduct);
           onProductUpdate(revalidated);
         }
-        
+
         toast.success(`Category set: ${result.categoryName} (${result.categoryCode})`);
       } else {
         toast.error(result.message || 'Could not recommend category');
@@ -175,7 +186,7 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
 
   const handleManualCategoryChange = (product: ParsedProduct, newCategory: string) => {
     if (!onProductUpdate) return;
-    
+
     const updatedProduct: ParsedProduct = {
       ...product,
       data: { ...product.data, category: newCategory },
@@ -265,11 +276,11 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
     const value = isEditing ? editedData[field] : product.data[field];
     const hasError = product.validationErrors.some(e => e.field === field && e.severity === 'error');
     const columnIndex = COLUMN_INDICES[field];
-    
+
     if (!isEditing) {
       return (
         <span className={cn(hasError && "text-destructive")}>
-          {type === 'number' && field.includes('Price') 
+          {type === 'number' && field.includes('Price')
             ? formatPrice(value as number)
             : value?.toString() || '-'
           }
@@ -315,6 +326,24 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
 
   return (
     <div className="w-full overflow-hidden rounded-xl border border-border bg-card">
+      <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+          <Badge variant="outline" className="bg-background">
+            {products.length} rows
+          </Badge>
+          <Badge variant="outline" className="bg-background">
+            {variantFamilyCount} variant families
+          </Badge>
+          <span className="text-muted-foreground">
+            Rows sharing the same Product Group upload as one Coupang product with multiple selectable items.
+          </span>
+        </div>
+        {variantRowCount > 0 && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Variant-linked rows detected: {variantRowCount}. Standalone rows without Product Group still upload normally.
+          </p>
+        )}
+      </div>
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -339,7 +368,7 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
             {products.map((product, index) => (
               <Collapsible key={product.id} asChild>
                 <>
-                  <TableRow 
+                  <TableRow
                     className={cn(
                       "cursor-pointer transition-colors",
                       selectedIds.has(product.id) && "bg-primary/5",
@@ -356,9 +385,9 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                     </TableCell>
                     <TableCell>
                       <CollapsibleTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8"
                           onClick={() => toggleRow(product.id)}
                         >
@@ -374,11 +403,23 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                       {product.rowIndex}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(product.status)}
-                        <span className="font-medium truncate max-w-[180px]">
-                          {product.data.productName || '-'}
-                        </span>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(product.status)}
+                          <span className="font-medium truncate max-w-[180px]">
+                            {product.data.productName || '-'}
+                          </span>
+                        </div>
+                        {product.data.productGroup && (variantGroupCounts[product.data.productGroup.trim()] || 0) > 1 && (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-[11px]">
+                              Variant group: {product.data.productGroup}
+                            </Badge>
+                            <span className="text-[11px] text-muted-foreground">
+                              {(variantGroupCounts[product.data.productGroup.trim()] || 0)} rows in this family
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
@@ -459,8 +500,8 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                                 </dt>
                                 <dd className="flex items-center gap-2">
                                   <Input
-                                    value={editingProduct === product.id 
-                                      ? (editedData.category || product.data.category || '') 
+                                    value={editingProduct === product.id
+                                      ? (editedData.category || product.data.category || '')
                                       : (product.data.category || '')}
                                     onChange={(e) => {
                                       if (editingProduct === product.id) {
@@ -500,10 +541,25 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                                 <dt className="text-muted-foreground text-xs">Model Number</dt>
                                 <dd>{renderEditableField(product, 'modelNumber')}</dd>
                               </div>
+                              <div className="space-y-1">
+                                <dt className="text-muted-foreground text-xs">Product Group</dt>
+                                <dd>
+                                  {product.data.productGroup ? (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Badge variant="secondary">{product.data.productGroup}</Badge>
+                                      <span className="text-xs text-muted-foreground">
+                                        {(variantGroupCounts[product.data.productGroup.trim()] || 1)} linked row(s)
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground">Standalone product</span>
+                                  )}
+                                </dd>
+                              </div>
                             </dl>
                           </div>
 
-                          {/* Pricing - Editable */}
+                          {/* Pricing & Inventory - Editable */}
                           <div className="space-y-3">
                             <h4 className="text-sm font-semibold text-foreground">Pricing & Inventory</h4>
                             <dl className="text-sm space-y-2">
@@ -523,6 +579,18 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                                 <dt className="text-muted-foreground text-xs">Lead Time (days)</dt>
                                 <dd>{renderEditableField(product, 'leadTime', 'number')}</dd>
                               </div>
+                              <div className="space-y-1">
+                                <dt className="text-muted-foreground text-xs">Max Per Person (0 = no limit)</dt>
+                                <dd>{renderEditableField(product, 'maxPurchasePerPerson', 'number')}</dd>
+                              </div>
+                              <div className="space-y-1">
+                                <dt className="text-muted-foreground text-xs">Vendor SKU</dt>
+                                <dd>{renderEditableField(product, 'vendorProductCode')}</dd>
+                              </div>
+                              <div className="space-y-1">
+                                <dt className="text-muted-foreground text-xs">Barcode</dt>
+                                <dd>{renderEditableField(product, 'barcode')}</dd>
+                              </div>
                             </dl>
                           </div>
 
@@ -533,9 +601,9 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                                 <ListChecks className="w-4 h-4" />
                                 Category Requirements
                               </h4>
-                              <CategoryRequirements 
-                                product={product} 
-                                credentials={credentials} 
+                              <CategoryRequirements
+                                product={product}
+                                credentials={credentials}
                               />
                             </div>
                           )}
@@ -601,19 +669,81 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                                   <dt className="text-muted-foreground text-xs">Main Image URL</dt>
                                   <dd>{renderEditableField(product, 'mainImage')}</dd>
                                 </div>
+                                {product.data.additionalImages && product.data.additionalImages.length > 0 && (
+                                  <div className="space-y-1">
+                                    <dt className="text-muted-foreground text-xs">
+                                      Additional Images ({product.data.additionalImages.length})
+                                    </dt>
+                                    <dd className="space-y-1">
+                                      {product.data.additionalImages.map((img, i) => (
+                                        <div key={i} className="text-xs text-muted-foreground truncate max-w-[280px]" title={img}>
+                                          {i + 1}. {img}
+                                        </div>
+                                      ))}
+                                    </dd>
+                                  </div>
+                                )}
                               </dl>
                             </div>
                           )}
 
-                          {/* Description */}
-                          {(product.data.detailedDescription || editingProduct === product.id) && (
-                            <div className="space-y-3 col-span-full">
-                              <h4 className="text-sm font-semibold text-foreground">Description</h4>
-                              <div>
-                                {renderEditableField(product, 'detailedDescription', 'textarea')}
+                          {/* Search Keywords & Attributes */}
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-foreground">Search & Options</h4>
+                            <dl className="text-sm space-y-2">
+                              <div className="space-y-1">
+                                <dt className="text-muted-foreground text-xs">Search Keywords (comma separated)</dt>
+                                <dd>{renderEditableField(product, 'searchKeywords')}</dd>
                               </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <dt className="text-muted-foreground text-xs">Option Type 1</dt>
+                                  <dd>{renderEditableField(product, 'optionType1')}</dd>
+                                </div>
+                                <div className="space-y-1">
+                                  <dt className="text-muted-foreground text-xs">Option Value 1</dt>
+                                  <dd>{renderEditableField(product, 'optionValue1')}</dd>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <dt className="text-muted-foreground text-xs">Option Type 2</dt>
+                                  <dd>{renderEditableField(product, 'optionType2')}</dd>
+                                </div>
+                                <div className="space-y-1">
+                                  <dt className="text-muted-foreground text-xs">Option Value 2</dt>
+                                  <dd>{renderEditableField(product, 'optionValue2')}</dd>
+                                </div>
+                              </div>
+                            </dl>
+                          </div>
+
+                          {/* Required Attributes: Quantity, Volume, Weight */}
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-foreground">Product Attributes</h4>
+                            <dl className="text-sm space-y-2">
+                              <div className="space-y-1">
+                                <dt className="text-muted-foreground text-xs">Quantity (수량)</dt>
+                                <dd>{renderEditableField(product, 'quantity')}</dd>
+                              </div>
+                              <div className="space-y-1">
+                                <dt className="text-muted-foreground text-xs">Volume (개당 용량)</dt>
+                                <dd>{renderEditableField(product, 'volume')}</dd>
+                              </div>
+                              <div className="space-y-1">
+                                <dt className="text-muted-foreground text-xs">Weight (개당 중량)</dt>
+                                <dd>{renderEditableField(product, 'weight')}</dd>
+                              </div>
+                            </dl>
+                          </div>
+
+                          {/* Description - Always visible so user can add it */}
+                          <div className="space-y-3 col-span-full">
+                            <h4 className="text-sm font-semibold text-foreground">Product Description (Required)</h4>
+                            <div>
+                              {renderEditableField(product, 'detailedDescription', 'textarea')}
                             </div>
-                          )}
+                          </div>
 
                           {/* API Error */}
                           {product.errorMessage && (

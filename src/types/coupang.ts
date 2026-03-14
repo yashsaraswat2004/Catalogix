@@ -116,6 +116,9 @@ export type OfferCondition = 'NEW' | 'REFURBISHED' | 'USED_BEST' | 'USED_GOOD' |
 
 // Internal product representation (parsed from uploaded files)
 export interface CoupangProduct {
+  // Variant Grouping
+  productGroup?: string;           // Group identifier for variants (rows with same value = same product)
+
   // Basic Info
   category: string;              // Category code or path
   productName: string;           // sellerProductName
@@ -240,6 +243,10 @@ export const EDITABLE_FIELDS: (keyof CoupangProduct)[] = [
   'barcode',
   'mainImage',
   'detailedDescription',
+  'searchKeywords',
+  'quantity',
+  'volume',
+  'weight',
   'optionType1',
   'optionValue1',
   'optionType2',
@@ -268,12 +275,12 @@ export interface WingSettings {
   returnZipCode: string;
   returnAddress: string;
   returnAddressDetail: string;
-  
+
   // Shipping Info
   outboundShippingPlaceCode: string;
   deliveryCompanyCode: string;
   countryCode?: string; // Country code from shipping place (KR = domestic, others = overseas)
-  
+
   // Vendor Info
   vendorUserId: string;
 }
@@ -408,6 +415,9 @@ export const FIELD_LABELS: Record<keyof CoupangProduct, string> = {
   detailedDescription: '상세설명',
   documents: '구비서류',
   needsTranslation: '번역필요',
+  quantity: '수량',
+  volume: '용량',
+  weight: '중량',
 };
 
 // English field labels
@@ -464,6 +474,9 @@ export const FIELD_LABELS_EN: Record<keyof CoupangProduct, string> = {
   detailedDescription: 'Detailed Description',
   documents: 'Documents',
   needsTranslation: 'Needs Translation',
+  quantity: 'Quantity',
+  volume: 'Volume',
+  weight: 'Weight',
 };
 
 // Wing settings labels

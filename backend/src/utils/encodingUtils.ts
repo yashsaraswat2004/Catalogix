@@ -157,7 +157,7 @@ export function normalizeAttributeValue(
 
     // Try to find a compatible unit type
     const isCountType = ['정', '캡슐', '개'].includes(mappedUnit);
-    const isWeightType = ['g', 'kg', 'mg'].includes(mappedUnit);
+    const isWeightType = ['g', 'kg', 'mg', 'lb', 'oz'].includes(mappedUnit);
     const isVolumeType = ['ml', 'L', 'oz'].includes(mappedUnit);
 
     for (const usable of usableUnits) {
@@ -282,20 +282,20 @@ export function sanitizeProductPayload(payload: any): any {
         item.searchTags = item.searchTags.map((tag: string) => sanitizeKoreanText(tag));
       }
 
-      return item;
-    });
-  }
-
-  // Sanitize contents
-  if (sanitized.contents && Array.isArray(sanitized.contents)) {
-    sanitized.contents = sanitized.contents.map((content: any) => {
-      if (content.contentDetails && Array.isArray(content.contentDetails)) {
-        content.contentDetails = content.contentDetails.map((detail: any) => ({
-          ...detail,
-          content: sanitizeKoreanText(detail.content || ''),
-        }));
+      // Sanitize contents (inside each item, per Coupang API spec)
+      if (item.contents && Array.isArray(item.contents)) {
+        item.contents = item.contents.map((content: any) => {
+          if (content.contentDetails && Array.isArray(content.contentDetails)) {
+            content.contentDetails = content.contentDetails.map((detail: any) => ({
+              ...detail,
+              content: detail.detailType === 'TEXT' ? sanitizeKoreanText(detail.content || '') : detail.content,
+            }));
+          }
+          return content;
+        });
       }
-      return content;
+
+      return item;
     });
   }
 

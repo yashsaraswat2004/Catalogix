@@ -458,6 +458,14 @@ const Dashboard = () => {
   const selectedValidCount = [...selectedIds].filter(id => 
     validProducts.some(p => p.id === id)
   ).length;
+  const variantGroupCounts = products.reduce((acc, product) => {
+    const groupId = product.data.productGroup?.trim();
+    if (groupId) {
+      acc[groupId] = (acc[groupId] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+  const variantFamilyCount = Object.values(variantGroupCounts).filter(count => count > 1).length;
 
   const isLoadingAny = isValidating || isUploading || isProcessing;
   const wingSettingsComplete = isWingSettingsComplete();
@@ -667,6 +675,11 @@ const Dashboard = () => {
                     <p className="text-xs sm:text-sm text-muted-foreground">
                       {selectedIds.size} selected ({selectedValidCount} ready for upload)
                     </p>
+                    {variantFamilyCount > 0 && (
+                      <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+                        Detected {variantFamilyCount} variant famil{variantFamilyCount === 1 ? 'y' : 'ies'}. Rows with the same Product Group will upload together as one listing.
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={handleClear} className="text-xs sm:text-sm">

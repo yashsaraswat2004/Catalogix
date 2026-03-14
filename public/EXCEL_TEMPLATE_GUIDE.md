@@ -1,139 +1,80 @@
-# 📋 Excel Template Guide - Coupang Product Upload
+# Excel Template Guide - Coupang Product Upload
 
-## ✅ Required Fields (Must Fill)
+## Required Fields
 
 ### Basic Information
 | Field | Example | Notes |
 |-------|---------|-------|
-| **Category** | `56196` | Coupang category code. Use Category Lookup tool to find correct code |
-| **Product Name** | `NIVEA Soft Cream 200ml` | Min 3 characters. Include size/volume in name if possible |
-| **Brand** | `NIVEA` | Min 2 characters. Official brand name |
-| **Manufacturer** | `Beiersdorf` | Min 2 characters. Company that makes the product |
+| **Category** | `56196` | Coupang category code. Use Category Lookup to find the right one |
+| **Product Name** | `NIVEA Soft Cream` | Use the common product title for variant rows |
+| **Brand** | `NIVEA` | Official brand name |
+| **Manufacturer** | `Beiersdorf` | Product manufacturer |
 
-### Pricing & Inventory
+### Pricing and Inventory
 | Field | Example | Notes |
 |-------|---------|-------|
-| **Sale Price** | `20890` | Must be > 0. Price in Korean Won (₩) |
-| **Discount Base Price** | `41200` | Must be ≥ Sale Price. Original/MSRP price |
-| **Stock** | `50` | Available quantity. Must be > 0 |
-| **Lead Time** | `12` | Processing days before shipment. Min 1 day |
+| **Sale Price** | `20890` | Must be greater than 0 |
+| **Discount Base Price** | `41200` | Original price or MSRP |
+| **Stock** | `50` | Inventory for that specific variant row |
+| **Lead Time** | `12` | Processing days |
 
-### Content (CRITICAL - Most Common Upload Failure)
+### Content
 | Field | Example | Notes |
 |-------|---------|-------|
-| **Detailed Description** | `"NIVEA Soft Daily UV Cream provides long-lasting moisture with SPF-15..."` | **Min 20 characters**. Must include real product details, features, ingredients, usage. NOT just product name! |
-| **Main Image** | `https://example.com/image.jpg` | Valid HTTPS URL. 1000x1000px recommended |
+| **Detailed Description** | Product details and usage | Minimum 20 characters |
+| **Main Image** | `https://example.com/image.jpg` | HTTPS URL recommended |
 
-### Product Attributes (Required for Most Categories)
-| Field | Example | When to Use | Notes |
-|-------|---------|-------------|-------|
-| **Quantity** | `1개`, `2개`, `10개` | Always safe to add | Defaults to `1개` if empty |
-| **Volume** | `200ml`, `1L`, `500ML` | Liquids, creams, beverages | **Use EITHER volume OR weight, NOT both** |
-| **Weight** | `100g`, `1kg`, `500그람` | Solids, powders, food | Use if no volume. Can extract from product name |
-
-## ⚠️ Important Rules
-
-### Volume vs Weight
-- ✅ **For liquids/creams**: Use `Volume` column (e.g., 200ml, 1.5L)
-- ✅ **For solids/food**: Use `Weight` column (e.g., 500g, 1kg)
-- ❌ **NEVER fill both** - Coupang will reject it
-- 💡 **Alternative**: Include in product name (e.g., "NIVEA Cream 200ml")
-
-### Detailed Description - MUST HAVE
-```
-❌ BAD:
-"NIVEA Soft Cream"
-
-✅ GOOD:
-"NIVEA Soft Daily UV Light Moisturising Cream provides long-lasting moisture with SPF-15 sun protection. 
-This lightweight formula is enriched with Jojoba Oil and Vitamin E, making it perfect for daily use on 
-face, hands, and body. Non-greasy texture absorbs quickly. Dermatologically tested. Suitable for all skin types."
-```
-
-**Minimum 20 characters required!**
-
-## 📦 Optional But Recommended Fields
-
+### Product Attributes
 | Field | Example | Notes |
 |-------|---------|-------|
-| **Search Keywords** | `nivea cream moisturizer spf` | Comma-separated. Max 20 keywords |
-| **SKU** | `NIVEA-SOFT-200` | Your internal product code |
-| **Model Number** | `NIVEA-UV-001` | Manufacturer's model number |
-| **Barcode** | `8901234567890` | EAN-13, UPC-A, or similar |
-| **Additional Image 1** | `https://...` | Extra product images |
-| **Additional Image 2** | `https://...` | Up to 9 additional images |
+| **Quantity** | `1ea`, `2ea`, `6ea` | Required and safe to include |
+| **Volume** | `200ml`, `500ml` | Use for liquids and creams |
+| **Weight** | `75g`, `500g` | Use for solids and food |
 
-## 🚫 Optional Fields (Can Leave Empty)
+## Variant Uploads
 
-| Field | Default | Notes |
-|-------|---------|-------|
-| Adult Only | `N` | Y/N - Adult content flag |
-| Taxable | `N` | Y/N - Tax exempt products |
-| Parallel Import | `N` | Y/N - Parallel imported goods |
-| Overseas Purchase | `Y` if country not KR | Auto-detected from Wing settings |
+To upload one Coupang listing with selectable variants, create **multiple rows with the same `Product Group`**.
 
-## 📝 Quick Checklist Before Upload
+### Rules for variant rows
+- Every row in the same `Product Group` should use the **same category**.
+- Keep **Product Name** as the shared parent title when possible.
+- Put the selectable difference in **Option Type 1 / Option Value 1**.
+- Give each variant its own **price, stock, SKU, quantity, volume, or weight**.
+- Use one row per variant.
 
-- [ ] Category code is correct (use Category Lookup tool)
-- [ ] Product name is descriptive (min 3 chars)
-- [ ] Brand and Manufacturer filled (min 2 chars each)
-- [ ] Detailed Description is comprehensive (min 20 chars)
-- [ ] Main Image is valid HTTPS URL
-- [ ] Sale Price and Discount Base Price are filled
-- [ ] Stock quantity is set (min 1)
-- [ ] Lead time is set (min 1 day)
-- [ ] EITHER Volume OR Weight is filled (or included in product name)
-- [ ] Quantity is filled (or will default to "1개")
-
-## 🎯 Example Products
-
-### Cosmetics/Cream (Use Volume)
+### Quantity variant example
 ```csv
-Category: 56196
-Product Name: NIVEA Soft Daily UV Light Moisturising Cream 200ml
-Volume: 200ml
-Detailed Description: Premium moisturizing cream with SPF-15 protection...
+Product Group,Category,Product Name,Option Type 1,Option Value 1,Sale Price,Stock,Quantity,Weight,SKU
+PARODONTAX-GUM-CARE,73137,Parodontax Daily Fluoride Gum Care Toothpaste,Pack Size,2 pieces,16760,80,2ea,75g,PARODONTAX-2P
+PARODONTAX-GUM-CARE,73137,Parodontax Daily Fluoride Gum Care Toothpaste,Pack Size,4 pieces,24110,70,4ea,75g,PARODONTAX-4P
+PARODONTAX-GUM-CARE,73137,Parodontax Daily Fluoride Gum Care Toothpaste,Pack Size,6 pieces,29590,60,6ea,75g,PARODONTAX-6P
 ```
 
-### Food/Supplement (Use Weight)
+### Volume variant example
 ```csv
-Category: 73137  
-Product Name: Dabur Chyawanprash Ayurvedic Immunity Booster
-Weight: 500g
-Detailed Description: Traditional Ayurvedic formulation with 40+ herbs...
+Product Group,Category,Product Name,Option Type 1,Option Value 1,Sale Price,Stock,Quantity,Volume,SKU
+NIVEA-CREAM,56196,NIVEA Soft Daily UV Light Moisturising Cream,Volume,200ml,20890,50,1ea,200ml,NIVEA-SOFT-200
+NIVEA-CREAM,56196,NIVEA Soft Daily UV Light Moisturising Cream,Volume,500ml,38900,30,1ea,500ml,NIVEA-SOFT-500
 ```
 
-### Beverage/Tea (Use Quantity for bags)
-```csv
-Category: 194146
-Product Name: Organic Green Tea Bags Premium Quality
-Quantity: 100개
-Detailed Description: Premium organic green tea from high-altitude gardens...
-```
+## Important Rules
+- Use **Volume OR Weight**, not both, unless the category explicitly needs both.
+- Each variant row should have its own SKU.
+- Quantity should describe that exact row, for example `2ea` or `6ea`.
+- If you leave `Product Group` empty, the row uploads as a standalone product.
 
-## 🆘 Common Upload Errors & Fixes
-
+## Common Upload Errors
 | Error | Cause | Fix |
 |-------|-------|-----|
-| "Detailed description required" | Description too short or missing | Add real product details (min 20 chars) |
-| "필수 구매 옵션이 존재하지 않습니다" | Missing volume/weight | Add Volume or Weight column |
-| "Volume or Weight required" | Missing size info | Add to column OR include in product name |
-| "그룹 옵션 중 하나만 선택" | Both volume AND weight filled | Remove one - use only volume OR weight |
-| "Invalid category" | Wrong category code | Use Category Lookup tool |
-| "Main image must be valid URL" | Invalid image URL | Use https:// URL |
+| Mixed category in variant group | Rows in one group use different categories | Keep one category for the whole group |
+| Variant validation failed | One row in the group is missing price, stock, image, etc. | Fix the specific row before upload |
+| Volume or Weight required | Missing size info | Add `Volume` or `Weight` to each relevant row |
+| Main image must be valid URL | Bad image link | Use an `http` or `https` image URL |
 
-## 💡 Pro Tips
+## Pro Tips
+1. Use the same **Product Group** for all rows that belong together.
+2. Use **Option Value 1** for what the customer should click on, like `2 pieces` or `500ml`.
+3. Keep the parent **Product Name** clean and shared across the group.
+4. Start with 2 or 3 variants first and dry run them.
 
-1. **Include size in product name** - "NIVEA Cream 200ml" (auto-extracts volume)
-2. **Write detailed descriptions** - Helps with SEO and reduces customer questions
-3. **Use real product images** - Better conversion rates
-4. **Fill all recommended fields** - Improves product visibility
-5. **Test with 1-2 products first** - Verify everything works before bulk upload
-
----
-
-📥 **Download the sample template**: `sample-product-template.csv`
-
-🔍 **Need category codes?** Use the Category Lookup tool in the dashboard
-
-❓ **Still having issues?** Check the error message - it tells you exactly what's missing!
+Download the sample CSV: `sample-product-template.csv`

@@ -154,6 +154,10 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
               <span className="hidden sm:inline">Download sample CSV template</span>
               <span className="sm:hidden">Sample template</span>
             </a>
+            <div className="max-w-xl rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-left text-xs text-muted-foreground">
+              <p className="font-medium text-foreground">Variant upload tip</p>
+              <p className="mt-1">Use the same <span className="font-medium text-foreground">Product Group</span> on multiple rows to create one Coupang listing with selectable variants like <span className="font-medium text-foreground">2 pieces</span>, <span className="font-medium text-foreground">4 pieces</span>, and <span className="font-medium text-foreground">6 pieces</span>.</p>
+            </div>
           </div>
         )}
 

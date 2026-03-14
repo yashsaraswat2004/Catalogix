@@ -2,12 +2,11 @@ import { generateHmacSignature } from './hmacSignature';
 import { sanitizeProductPayload, logAttributeValidation } from '../utils/encodingUtils';
 
 const COUPANG_API_BASE = 'https://api-gateway.coupang.com';
-const COUPANG_PROXY_URL = process.env.COUPANG_PROXY_URL;
-const COUPANG_PROXY_SECRET = process.env.COUPANG_PROXY_SECRET;
 
 // Retry configuration for transient failures
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 2000; // 2 seconds, doubles each retry
+const REQUEST_TIMEOUT_MS = 60000; // 60 seconds per request
 
 /**
  * Sleep for a given number of milliseconds
@@ -34,34 +33,8 @@ function isRetryableError(error: Error): boolean {
 }
 
 /**
- * Make a single proxy request attempt
- */
-async function makeProxyRequest(
-  proxyPayload: any,
-  headers: Record<string, string>,
-  timeoutMs: number = 60000
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(`${COUPANG_PROXY_URL}/proxy`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(proxyPayload),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-    return response;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    throw error;
-  }
-}
-
-/**
- * Unified helper to call Coupang API
- * Routes request through Proxy if configured, otherwise calls directly.
+ * Unified helper to call Coupang API directly.
+ * Uses HMAC signature authentication.
  * Includes retry logic with exponential backoff for transient failures.
  */
 async function callCoupangApi(
@@ -72,78 +45,55 @@ async function callCoupangApi(
   secretKey: string,
   body: any = null
 ): Promise<Response> {
-  // Option 1: Use Proxy (checking if configured)
-  if (COUPANG_PROXY_URL) {
-    const proxyPayload = {
-      method,
-      path,
-      query,
-      body
-    };
+  const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
+  const url = `${COUPANG_API_BASE}${path}${query ? '?' + query : ''}`;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    };
-
-    if (COUPANG_PROXY_SECRET) {
-      headers['x-proxy-secret'] = COUPANG_PROXY_SECRET;
+  const options: RequestInit = {
+    method,
+    headers: {
+      'Authorization': authorization,
+      'Content-Type': 'application/json;charset=UTF-8'
     }
+  };
 
-    let lastError: Error | null = null;
-
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        console.log(`[API] Proxy request attempt ${attempt}/${MAX_RETRIES}: ${method} ${path}`);
-        const response = await makeProxyRequest(proxyPayload, headers);
-
-        // If we get a response (even error codes), return it - let caller handle
-        return response;
-      } catch (error) {
-        lastError = error as Error;
-        console.error(`[API] Proxy attempt ${attempt}/${MAX_RETRIES} failed:`, lastError.message);
-
-        // Check if we should retry
-        if (attempt < MAX_RETRIES && isRetryableError(lastError)) {
-          const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt - 1); // 2s, 4s, 8s
-          console.log(`[API] Retrying in ${delay / 1000}s due to transient error...`);
-          await sleep(delay);
-          continue;
-        }
-
-        // Final attempt or non-retryable error - throw with helpful message
-        if (lastError.name === 'AbortError') {
-          throw new Error(`Proxy request timed out after ${MAX_RETRIES} attempts. The proxy server may be overloaded or unresponsive.`);
-        }
-        if (lastError.message.includes('HeadersTimeout') || lastError.message.includes('UND_ERR_HEADERS_TIMEOUT')) {
-          throw new Error('Proxy server did not respond in time. Please check if the Oracle proxy is running.');
-        }
-        throw new Error(`Failed to connect to proxy after ${attempt} attempt(s): ${lastError.message}`);
-      }
-    }
-
-    // Should not reach here, but just in case
-    throw lastError || new Error('Proxy request failed for unknown reason');
+  if (body) {
+    options.body = JSON.stringify(body);
   }
 
-  // Option 2: Direct Call (Legacy/Local)
-  else {
-    const { authorization } = generateHmacSignature(method, path, query, secretKey, accessKey);
-    const url = `${COUPANG_API_BASE}${path}${query ? '?' + query : ''}`;
+  let lastError: Error | null = null;
 
-    const options: RequestInit = {
-      method,
-      headers: {
-        'Authorization': authorization,
-        'Content-Type': 'application/json;charset=UTF-8'
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+      console.log(`[API] Direct request attempt ${attempt}/${MAX_RETRIES}: ${method} ${path}`);
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      // If we get a response (even error codes), return it - let caller handle
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`[API] Attempt ${attempt}/${MAX_RETRIES} failed:`, lastError.message);
+
+      // Check if we should retry
+      if (attempt < MAX_RETRIES && isRetryableError(lastError)) {
+        const delay = BASE_RETRY_DELAY_MS * Math.pow(2, attempt - 1); // 2s, 4s, 8s
+        console.log(`[API] Retrying in ${delay / 1000}s due to transient error...`);
+        await sleep(delay);
+        continue;
       }
-    };
 
-    if (body) {
-      options.body = JSON.stringify(body);
+      // Final attempt or non-retryable error
+      if (lastError.name === 'AbortError') {
+        throw new Error(`Coupang API request timed out after ${MAX_RETRIES} attempts.`);
+      }
+      throw new Error(`Failed to call Coupang API after ${attempt} attempt(s): ${lastError.message}`);
     }
-
-    return fetch(url, options);
   }
+
+  throw lastError || new Error('Coupang API request failed for unknown reason');
 }
 
 
@@ -190,10 +140,29 @@ function cleanBarcode(barcode: string | undefined | null): string {
 
 export function extractDisplayCategoryCode(category: any): number {
   if (!category) return 0;
-  const parts = String(category).split('>');
+  const catStr = String(category).trim();
+
+  // Format 1: "[56442] 뷰티>메이크업>..." — extract number from brackets
+  const bracketMatch = catStr.match(/\[(\d+)\]/);
+  if (bracketMatch) {
+    return parseInt(bracketMatch[1], 10);
+  }
+
+  // Format 2: Pure number like "56442" or "16014270152"
+  const parsed = parseInt(catStr, 10);
+  if (Number.isFinite(parsed) && String(parsed) === catStr.replace(/\s/g, '')) {
+    return parsed;
+  }
+
+  // Format 3: "뷰티 > 메이크업 > 56442" — last segment is number
+  const parts = catStr.split('>');
   const lastPart = parts[parts.length - 1].trim();
-  const parsed = parseInt(lastPart, 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+  const lastParsed = parseInt(lastPart, 10);
+  if (Number.isFinite(lastParsed)) {
+    return lastParsed;
+  }
+
+  return 0;
 }
 
 export async function fetchDisplayCategoryStatus(
@@ -448,17 +417,24 @@ function extractCountFromText(text: string, patterns: string[]): string | null {
 
 function extractWeightFromText(text: string): string | null {
   const patterns = [
-    { regex: /(\d+(?:\.\d+)?)\s*kg/i, suffix: 'kg' },
-    { regex: /(\d+(?:\.\d+)?)\s*gm/i, suffix: 'g' },  // Handle 'gm' before 'g'
-    { regex: /(\d+(?:\.\d+)?)\s*gram/i, suffix: 'g' },
-    { regex: /(\d+(?:\.\d+)?)\s*g(?!ram)/i, suffix: 'g' },
-    { regex: /(\d+(?:\.\d+)?)\s*mg/i, suffix: 'mg' }
+    { regex: /(\d+(?:\.\d+)?)\s*kg(?![a-z])/i, suffix: 'kg' },
+    { regex: /(\d+(?:\.\d+)?)\s*gm(?![a-z])/i, suffix: 'g' },  // Handle 'gm' before 'g'
+    { regex: /(\d+(?:\.\d+)?)\s*grams?(?![a-z])/i, suffix: 'g' },
+    // For 'g' unit: require it to NOT be followed by another letter and
+    // the number must be a reasonable weight (>= 1g) to avoid matching
+    // things like "0.35G" in product name decorations
+    { regex: /(?:^|[\s,])((\d+(?:\.\d+)?))\s*g(?![a-z])/i, suffix: 'g', groupIndex: 1 },
+    { regex: /(\d+(?:\.\d+)?)\s*mg(?![a-z])/i, suffix: 'mg' }
   ];
 
-  for (const { regex, suffix } of patterns) {
-    const match = text.match(regex);
+  for (const pattern of patterns) {
+    const match = text.match(pattern.regex);
     if (match) {
-      return `${match[1]}${suffix}`;
+      const numStr = match[(pattern as any).groupIndex || 1];
+      const num = parseFloat(numStr);
+      // Skip very small gram values like 0.35g that are likely not weights
+      if (pattern.suffix === 'g' && num < 1) continue;
+      return `${numStr}${pattern.suffix}`;
     }
   }
   return null;
@@ -500,6 +476,7 @@ function normalizeUnit(unit: string): string {
     'g': 'g',
     'gram': 'g',
     'grams': 'g',
+    'gm': 'g',
     'kg': 'kg',
     'kilogram': 'kg',
     'kilograms': 'kg',
@@ -726,26 +703,45 @@ function inferAttributeValue(attrMeta: any, product: any): string | null {
 
   let extractedValue: string | null = null;
 
-  // 수량 (quantity) - extract numeric count
+  // PRIORITY 0: Use explicit fields from frontend parser (volume, weight, quantity)
+  // These come directly from XLSX headers like "[7823]개당 용량(필수)(기본 단위 : ml)"
   if (typeName.includes('수량') || typeName.includes('quantity')) {
-    extractedValue = extractQuantityFromText(combined);
-    // DO NOT use hardcoded '1개' - let validation handle the unit
-    if (!extractedValue) {
-      extractedValue = '1'; // Just the number, unit will be added from usableUnits
+    if (product.quantity) {
+      extractedValue = product.quantity;
+      console.log(`[InferValue] Using explicit quantity field: ${extractedValue}`);
+    } else {
+      extractedValue = extractQuantityFromText(combined);
+      if (!extractedValue) {
+        extractedValue = '1'; // Just the number, unit will be added from usableUnits
+      }
     }
   }
   // 개당 수량 (per unit count)
   else if (typeName.includes('개당 수량')) {
-    const match = combined.match(/(\d+)\s*(bags?|packs?|pieces?|개|팩|ea)/i);
-    extractedValue = match ? match[1] : '1'; // Just the number
+    if (product.quantity) {
+      extractedValue = product.quantity;
+    } else {
+      const match = combined.match(/(\d+)\s*(bags?|packs?|pieces?|개|팩|ea)/i);
+      extractedValue = match ? match[1] : '1'; // Just the number
+    }
   }
   // 용량/개당 용량/최소 용량 (volume)
   else if (typeName.includes('용량') || typeName.includes('volume')) {
-    extractedValue = extractVolumeFromText(combined);
+    if (product.volume) {
+      extractedValue = product.volume;
+      console.log(`[InferValue] Using explicit volume field: ${extractedValue}`);
+    } else {
+      extractedValue = extractVolumeFromText(combined);
+    }
   }
   // 중량/개당 중량/최소 중량 (weight)
   else if (typeName.includes('중량') || typeName.includes('weight')) {
-    extractedValue = extractWeightFromText(combined);
+    if (product.weight) {
+      extractedValue = product.weight;
+      console.log(`[InferValue] Using explicit weight field: ${extractedValue}`);
+    } else {
+      extractedValue = extractWeightFromText(combined);
+    }
   }
   // 캡슐/정 (tablets/capsules)
   else if (typeName.includes('캡슐') || typeName.includes('정') || typeName.includes('tablet')) {
@@ -839,6 +835,30 @@ function extractValueFromText(text: string, patterns: RegExp[]): string | null {
   return null;
 }
 
+// Helper to ensure a unit is present for attributes
+function ensureUnit(value: any, defaultUnit: string): string {
+  if (!value) return '';
+  let str = String(value).trim();
+
+  // Normalize common bad units BEFORE regex check
+  if (defaultUnit === 'g') {
+    str = str.replace(/gm$/i, 'g').replace(/grams?$/i, 'g');
+  } else if (defaultUnit === 'ml') {
+    str = str.replace(/milliliters?$/i, 'ml');
+  } else if (defaultUnit === '개') {
+    str = str.replace(/ea$/i, '개').replace(/pieces?$/i, '개');
+  }
+
+  // Remove spaces before units (e.g., "100 g" -> "100g")
+  str = str.replace(/\s+([a-zA-Z가-힣]+)$/, '$1');
+
+  // If it's just a number or number with decimal, append the default unit
+  if (/^[\d.]+$/.test(str)) {
+    return `${str}${defaultUnit}`;
+  }
+  return str;
+}
+
 export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] {
   const attributes: any[] = [];
   const usedAttrNames = new Set<string>();
@@ -922,16 +942,54 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   console.log(`[Attributes] Valid attr names for category: ${Array.from(validAttrNames).slice(0, 10).join(', ')}...`);
   console.log(`[Attributes] Valid user-provided options: ${userProvidedOptions.length}`);
 
-  // Try to use user-provided options for mandatory attributes first
+  // Try to use user-provided options for attributes
+  // Enhanced matching: fuzzy Korean name matching + English-to-Korean translation
   for (const userOption of userProvidedOptions) {
-    // Find matching attribute in metadata
-    const matchingAttr = attributeTypeMetas.find((meta: any) =>
-      meta.attributeTypeName?.toLowerCase() === userOption.type.toLowerCase() ||
-      meta.attributeTypeName?.includes(userOption.type) ||
-      userOption.type.includes(meta.attributeTypeName || '')
-    );
+    // Build a list of alternative names to try for matching
+    const alternativeNames: string[] = [userOption.type.toLowerCase()];
 
-    if (matchingAttr && matchingAttr.required === 'MANDATORY') {
+    // Add Korean synonyms for common unit-related attribute types
+    const koreanSynonyms: Record<string, string[]> = {
+      '용량': ['개당 용량', '총 용량', '순 내용 양'],
+      '개당 용량': ['용량', '총 용량', '순 내용 양'],
+      '중량': ['개당 중량', '총 중량', '순 함량 중량'],
+      '개당 중량': ['중량', '총 중량', '순 함량 중량'],
+      '수량': ['총 수량'],
+      '총 수량': ['수량'],
+      '사이즈': ['크기'],
+      '크기': ['사이즈'],
+    };
+
+    // Add synonyms for the user's option type
+    const typeKey = userOption.type.trim();
+    for (const [key, synonyms] of Object.entries(koreanSynonyms)) {
+      if (typeKey.includes(key) || key.includes(typeKey)) {
+        for (const syn of synonyms) {
+          alternativeNames.push(syn.toLowerCase());
+        }
+      }
+    }
+
+    // Also try English-to-Korean lookup
+    for (const [engKey, patternInfo] of Object.entries(ENGLISH_ATTR_PATTERNS)) {
+      if (userOption.type.toLowerCase().includes(engKey.toLowerCase())) {
+        for (const koreanName of patternInfo.koreanNames) {
+          alternativeNames.push(koreanName.toLowerCase());
+        }
+      }
+    }
+
+    // Find matching attribute in metadata using all alternative names
+    const matchingAttr = attributeTypeMetas.find((meta: any) => {
+      const metaName = (meta.attributeTypeName || '').toLowerCase();
+      return alternativeNames.some(altName =>
+        metaName === altName ||
+        metaName.includes(altName) ||
+        altName.includes(metaName)
+      );
+    });
+
+    if (matchingAttr) {
       const usableUnits = matchingAttr.usableUnits || [];
       const predefinedValues = (matchingAttr.attributeValueMetas || []).map((v: any) => v.attributeValueName);
       let finalValue = userOption.value;
@@ -951,7 +1009,16 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
         attributeValueName: finalValue.substring(0, 30)
       });
       usedAttrNames.add(matchingAttr.attributeTypeName.toLowerCase());
-      console.log(`[Attributes] Used user-provided: ${matchingAttr.attributeTypeName}=${finalValue}`);
+      console.log(`[Attributes] Used user-provided: ${matchingAttr.attributeTypeName}=${finalValue} (matched from "${userOption.type}")`);
+    } else {
+      // No category meta match — still add the user option as-is so it's not silently lost
+      // This ensures attributes like user-supplied units are always included in the payload
+      attributes.push({
+        attributeTypeName: userOption.type.substring(0, 25),
+        attributeValueName: userOption.value.substring(0, 30)
+      });
+      usedAttrNames.add(userOption.type.toLowerCase());
+      console.log(`[Attributes] No category match for "${userOption.type}" — added as-is: ${userOption.type}=${userOption.value}`);
     }
   }
 
@@ -1073,7 +1140,9 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
 
     const explicitVolume = product.volume;
     const explicitWeight = product.weight;
-    const extractedVolume = extractVolumeFromText(productName);
+    // Search ALL combined text for volume/weight, not just productName
+    const extractedVolume = extractVolumeFromText(combined);
+    const extractedWeight = extractWeightFromText(combined);
 
     if (volumeMeta && (explicitVolume || extractedVolume)) {
       const volValue = getValidValue(volumeMeta, explicitVolume || extractedVolume);
@@ -1084,8 +1153,8 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
         });
         console.log(`[Attributes] Added ${volumeMeta.attributeTypeName}=${volValue} (validated)`);
       }
-    } else if (weightMeta && explicitWeight) {
-      const wtValue = getValidValue(weightMeta, explicitWeight);
+    } else if (weightMeta && (explicitWeight || extractedWeight)) {
+      const wtValue = getValidValue(weightMeta, explicitWeight || extractedWeight);
       if (wtValue) {
         attributes.push({
           attributeTypeName: weightMeta.attributeTypeName.substring(0, 25),
@@ -1096,41 +1165,190 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     } else if (!volumeMeta && !weightMeta) {
       console.log(`[Attributes] Skipping volume/weight - not in category metadata`);
     } else {
-      console.log(`[Attributes] WARNING: Category supports volume/weight but no data in CSV. Consider adding 'volume' or 'weight' column.`);
+      console.log(`[Attributes] WARNING: Category supports volume/weight but no data found. Consider adding 'volume' or 'weight' column.`);
     }
+  }
+
+  // SAFETY NET: Include user-provided quantity/volume/weight from CSV
+  // Even if NOT in category metadata, Coupang needs these for the product display line:
+  // "Capacity per unit × Quantity : 30ml × 1"
+  // IMPORTANT: Only add if user actually provided data — NO hardcoded defaults
+  const finalAttrNames = new Set(attributes.map(a => (a.attributeTypeName || '').toLowerCase()));
+
+  if (product.quantity && !finalAttrNames.has('수량') && !attributes.some(a => a.attributeTypeName?.includes('수량'))) {
+    const val = ensureUnit(product.quantity, '개');
+    attributes.push({
+      attributeTypeName: "수량",
+      attributeValueName: val.substring(0, 30)
+    });
+    console.log(`[Attributes] SAFETY NET: Added 수량=${val} from CSV`);
+  }
+
+  if (product.volume && !finalAttrNames.has('개당 용량') && !finalAttrNames.has('용량') && !attributes.some(a => a.attributeTypeName?.includes('용량'))) {
+    const val = ensureUnit(product.volume, 'ml');
+    attributes.push({
+      attributeTypeName: "개당 용량",
+      attributeValueName: val.substring(0, 30)
+    });
+    console.log(`[Attributes] SAFETY NET: Added 개당 용량=${val} from CSV`);
+  }
+
+  if (product.weight && !finalAttrNames.has('개당 중량') && !finalAttrNames.has('중량') && !attributes.some(a => a.attributeTypeName?.includes('중량'))) {
+    const val = ensureUnit(product.weight, 'g');
+    attributes.push({
+      attributeTypeName: "개당 중량",
+      attributeValueName: val.substring(0, 30)
+    });
+    console.log(`[Attributes] SAFETY NET: Added 개당 중량=${val} from CSV`);
   }
 
   console.log(`[Attributes] Final attributes count: ${attributes.length}`);
   return attributes;
 }
 
-export function transformProductToCoupangFormat(product: any, vendorId: string, wingSettings: any, notices?: any[], categoryMeta?: any): any {
-  let categoryCode = 0;
-  if (product.category) {
-    const parts = product.category.toString().split('>');
-    const lastPart = parts[parts.length - 1].trim();
-    categoryCode = parseInt(lastPart) || 0;
+// Helper: Escape HTML special characters
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Helper: Convert plain text description into clean, formatted HTML for Coupang product page
+function formatDescriptionAsHtml(rawDesc: string, product: any): string {
+  const productName = escapeHtml(product.productName || 'Product');
+  const brand = product.brand ? escapeHtml(product.brand) : '';
+  const manufacturer = product.manufacturer ? escapeHtml(product.manufacturer) : '';
+
+  // Split description into meaningful paragraphs
+  // Split on: double newlines, single newlines, or periods followed by space
+  let paragraphs: string[];
+  if (rawDesc.includes('\n')) {
+    // If the description has explicit newlines, split on those
+    paragraphs = rawDesc.split(/\n+/).map(p => p.trim()).filter(p => p.length > 0);
+  } else {
+    // Otherwise split long text into chunks by sentence boundaries (period + space)
+    paragraphs = rawDesc
+      .split(/(?<=\.)\s+/)
+      .reduce((acc: string[], sentence) => {
+        const lastGroup = acc[acc.length - 1];
+        // Group 2-3 sentences into each paragraph
+        if (lastGroup && lastGroup.split('.').length < 3 && lastGroup.length < 200) {
+          acc[acc.length - 1] = lastGroup + ' ' + sentence;
+        } else {
+          acc.push(sentence);
+        }
+        return acc;
+      }, [])
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
   }
 
-  const formatDate = (dateStr: string, isEnd: boolean = false): string => {
-    if (!dateStr) {
-      const now = new Date();
-      if (isEnd) {
-        return "2099-12-31T23:59:59";
-      }
-      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T00:00:00`;
-    }
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {
-        return isEnd ? "2099-12-31T23:59:59" : new Date().toISOString().split('T')[0] + "T00:00:00";
-      }
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${isEnd ? '23:59:59' : '00:00:00'}`;
-    } catch {
-      return isEnd ? "2099-12-31T23:59:59" : new Date().toISOString().split('T')[0] + "T00:00:00";
-    }
-  };
+  // Build HTML with proper styling
+  const htmlParts: string[] = [];
+  htmlParts.push(`<div style="max-width:900px; margin:0 auto; padding:30px 20px; font-family:'Malgun Gothic','맑은 고딕',sans-serif; color:#333; line-height:1.8; font-size:15px;">`);
 
+  // Product title
+  htmlParts.push(`<h2 style="font-size:22px; font-weight:bold; color:#111; margin-bottom:20px; padding-bottom:15px; border-bottom:2px solid #e0e0e0;">${productName}</h2>`);
+
+  // Brand/Manufacturer info bar
+  if (brand || manufacturer) {
+    htmlParts.push(`<div style="background:#f8f9fa; padding:12px 16px; border-radius:6px; margin-bottom:25px; font-size:14px; color:#555;">`);
+    if (brand) htmlParts.push(`<span><strong>브랜드:</strong> ${brand}</span>`);
+    if (brand && manufacturer) htmlParts.push(`<span style="margin:0 12px; color:#ddd;">|</span>`);
+    if (manufacturer) htmlParts.push(`<span><strong>제조사:</strong> ${manufacturer}</span>`);
+    htmlParts.push(`</div>`);
+  }
+
+  // Description paragraphs
+  htmlParts.push(`<div style="margin-bottom:20px;">`);
+  for (const para of paragraphs) {
+    htmlParts.push(`<p style="margin-bottom:12px; text-align:justify;">${escapeHtml(para)}</p>`);
+  }
+  htmlParts.push(`</div>`);
+
+  htmlParts.push(`</div>`);
+
+  return htmlParts.join('\n');
+}
+
+
+function collectVariantOptionPairs(product: any): Array<{ type: string; value: string }> {
+  const pairs = [
+    { type: product.optionType1, value: product.optionValue1 },
+    { type: product.optionType2, value: product.optionValue2 },
+    { type: product.optionType3, value: product.optionValue3 },
+    { type: product.optionType4, value: product.optionValue4 },
+  ];
+
+  return pairs.filter(pair => !isInvalidAttributeValue(pair.type) && !isInvalidAttributeValue(pair.value));
+}
+
+function trimVariantName(name: string): string {
+  return name
+    .replace(/[-,:/|()\[\]]+\s*$/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function deriveCommonProductName(variantProducts: any[]): string {
+  const names = variantProducts
+    .map(product => String(product?.productName || '').trim())
+    .filter(Boolean);
+
+  if (names.length === 0) return 'Product';
+  if (names.length === 1) return names[0];
+
+  let prefix = names[0];
+  for (let i = 1; i < names.length && prefix; i++) {
+    const current = names[i];
+    let cursor = 0;
+    while (
+      cursor < prefix.length &&
+      cursor < current.length &&
+      prefix[cursor].toLowerCase() === current[cursor].toLowerCase()
+    ) {
+      cursor++;
+    }
+    prefix = prefix.slice(0, cursor);
+  }
+
+  const trimmed = trimVariantName(prefix);
+  if (!trimmed) {
+    return names[0];
+  }
+
+  return (trimmed.split(/\s+/).length >= 3 ? trimmed : names[0]).substring(0, 100);
+}
+
+function buildVariantItemName(product: any, baseProductName?: string): string {
+  const optionPairs = collectVariantOptionPairs(product);
+  if (optionPairs.length > 0) {
+    return optionPairs.map(pair => pair.value.trim()).join(' / ').substring(0, 150);
+  }
+
+  const fallbackParts = [product.quantity, product.volume, product.weight]
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+
+  if (fallbackParts.length > 0) {
+    return fallbackParts.join(' / ').substring(0, 150);
+  }
+
+  const productName = String(product?.productName || '').trim();
+  if (baseProductName && productName.toLowerCase().startsWith(baseProductName.toLowerCase())) {
+    const suffix = trimVariantName(productName.slice(baseProductName.length));
+    if (suffix) {
+      return suffix.substring(0, 150);
+    }
+  }
+
+  return productName.substring(0, 150) || 'Default';
+}
+// Helper: Build a single Coupang item object from product data
+function buildSingleItem(product: any, wingSettings: any, notices?: any[], categoryMeta?: any, baseProductName?: string): any {
   let attributes: any[];
   if (categoryMeta) {
     attributes = buildAttributesFromCategoryMeta(product, categoryMeta);
@@ -1162,12 +1380,40 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
       });
     }
 
-    if (attributes.length === 0) {
+    // Add quantity, volume, weight from CSV if available (NO hardcoded defaults)
+    const usedTypeNames = new Set(attributes.map(a => a.attributeTypeName.toLowerCase()));
+
+    // Add 수량 (quantity) only if provided in CSV
+    if (product.quantity && !usedTypeNames.has('수량')) {
+      const val = ensureUnit(product.quantity, '개');
       attributes.push({
         attributeTypeName: "수량",
-        attributeValueName: "1개"
+        attributeValueName: val.substring(0, 30)
       });
+      console.log(`[Attributes] Added 수량=${val} from CSV`);
     }
+
+    // Add 개당 용량 (volume per unit) if provided in CSV
+    if (product.volume && !usedTypeNames.has('개당 용량') && !usedTypeNames.has('용량')) {
+      const val = ensureUnit(product.volume, 'ml');
+      attributes.push({
+        attributeTypeName: "개당 용량",
+        attributeValueName: val.substring(0, 30)
+      });
+      console.log(`[Attributes] Added 개당 용량=${val} from CSV`);
+    }
+
+    // Add 개당 중량 (weight per unit) if provided in CSV
+    if (product.weight && !usedTypeNames.has('개당 중량') && !usedTypeNames.has('중량')) {
+      const val = ensureUnit(product.weight, 'g');
+      attributes.push({
+        attributeTypeName: "개당 중량",
+        attributeValueName: val.substring(0, 30)
+      });
+      console.log(`[Attributes] Added 개당 중량=${val} from CSV`);
+    }
+
+    console.log(`[Attributes] Fallback path: ${attributes.length} attribute(s) total`);
   }
 
   const images: any[] = [];
@@ -1193,19 +1439,46 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
 
   const contents: any[] = [];
   if (product.detailedDescription && product.detailedDescription.trim()) {
-    const isHtml = /<[^>]+>/.test(product.detailedDescription);
-    const cleanContent = product.detailedDescription.trim();
-
+    const rawDesc = product.detailedDescription.trim();
+    const htmlContent = formatDescriptionAsHtml(rawDesc, product);
     contents.push({
-      contentsType: isHtml ? "HTML" : "TEXT",
+      contentsType: "HTML",
       contentDetails: [{
-        content: cleanContent,
+        content: htmlContent,
         detailType: "TEXT"
       }]
     });
-    console.log(`[Transform] Added content: ${cleanContent.substring(0, 100)}...`);
   } else {
-    console.log(`[Transform] WARNING: No detailed description provided - validation should have caught this`);
+    // Fallback: generate basic HTML from product info
+    const fallbackHtml = [
+      `<div style="padding:20px; font-family:sans-serif; line-height:1.8;">`,
+      `<h2 style="margin-bottom:15px;">${escapeHtml(product.productName || 'Product')}</h2>`,
+      product.brand ? `<p><strong>브랜드:</strong> ${escapeHtml(product.brand)}</p>` : '',
+      product.manufacturer ? `<p><strong>제조사:</strong> ${escapeHtml(product.manufacturer)}</p>` : '',
+      `</div>`
+    ].filter(Boolean).join('\n');
+    contents.push({
+      contentsType: "HTML",
+      contentDetails: [{
+        content: fallbackHtml,
+        detailType: "TEXT"
+      }]
+    });
+  }
+
+  // Add detail images as content entries
+  if (product.additionalImages && Array.isArray(product.additionalImages)) {
+    product.additionalImages.forEach((img: string) => {
+      if (img && img.trim() && img.trim().startsWith('http')) {
+        contents.push({
+          contentsType: "IMAGE",
+          contentDetails: [{
+            content: img.trim(),
+            detailType: "IMAGE"
+          }]
+        });
+      }
+    });
   }
 
   const searchTags: string[] = [];
@@ -1234,22 +1507,14 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
   const isShippingFromOverseas = wingSettings.countryCode && wingSettings.countryCode !== 'KR';
   const isOverseasProduct = product.overseasPurchase || isShippingFromOverseas;
 
-  console.log(`[Overseas Check] Country: ${wingSettings.countryCode}, Product overseas flag: ${product.overseasPurchase}, Final overseas: ${isOverseasProduct}`);
-
-  // Clean and validate barcode - extracts ASIN from Amazon URLs or validates format
   const validBarcode = cleanBarcode(product.barcode);
-
-  // Generate unique vendorItemId - MUST be a numeric Long value (not string!)
-  // Use timestamp + random number to ensure uniqueness
-  const timestamp = Date.now();
-  const randomSuffix = Math.floor(Math.random() * 1000);
-  const vendorItemId = parseInt(`${timestamp}${randomSuffix}`);
+  const skuSuffix = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
   const item: any = {
-    vendorItemId: vendorItemId,  // REQUIRED: Unique numeric identifier for this purchasable SKU
-    itemName: (product.productName || "Product").substring(0, 150),
-    originalPrice: Math.round(product.discountBasePrice || product.salePrice || 0),
-    salePrice: Math.round(product.salePrice || 0),
+    itemName: buildVariantItemName(product, baseProductName),
+    // Coupang requires prices in multiples of 10 KRW (1원단위 입력 불가)
+    originalPrice: Math.ceil((product.discountBasePrice || product.salePrice || 0) / 10) * 10,
+    salePrice: Math.ceil((product.salePrice || 0) / 10) * 10,
     maximumBuyCount: Math.min(Math.round(product.stockQuantity || 100), 99999),
     maximumBuyForPerson: Math.round(product.maxPurchasePerPerson || 0),
     maximumBuyForPersonPeriod: Math.round(product.maxPurchasePeriod || 1) || 1,
@@ -1260,7 +1525,7 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     parallelImported: product.parallelImport ? "PARALLEL_IMPORTED" : "NOT_PARALLEL_IMPORTED",
     overseasPurchased: isOverseasProduct ? "OVERSEAS_PURCHASED" : "NOT_OVERSEAS_PURCHASED",
     pccNeeded: isOverseasProduct,
-    externalVendorSku: product.vendorProductCode || `SKU-${vendorItemId}`,
+    externalVendorSku: product.vendorProductCode || `SKU-${skuSuffix}`,
     barcode: validBarcode,
     emptyBarcode: !validBarcode,
     emptyBarcodeReason: !validBarcode ? "상품확인불가_바코드없음사유" : "",
@@ -1269,33 +1534,64 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     searchTags: searchTags,
     images: images,
     attributes: attributes,
+    contents: contents,
     offerCondition: "NEW",
     offerDescription: ""
   };
-
-  console.log(`[Transform] Created item with vendorItemId: ${vendorItemId}`);
 
   if (Array.isArray(notices) && notices.length > 0) {
     item.notices = notices;
   }
 
+  return item;
+}
+
+// Helper: Build the product-level payload wrapper (shipping, delivery, etc.)
+function buildProductPayload(product: any, vendorId: string, wingSettings: any, items: any[], sellerProductNameOverride?: string): any {
+  let categoryCode = 0;
+  if (product.category) {
+    const parts = product.category.toString().split('>');
+    const lastPart = parts[parts.length - 1].trim();
+    categoryCode = parseInt(lastPart) || 0;
+  }
+
+  const formatDate = (dateStr: string, isEnd: boolean = false): string => {
+    if (!dateStr) {
+      const now = new Date();
+      if (isEnd) return "2099-12-31T23:59:59";
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T00:00:00`;
+    }
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        return isEnd ? "2099-12-31T23:59:59" : new Date().toISOString().split('T')[0] + "T00:00:00";
+      }
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}T${isEnd ? '23:59:59' : '00:00:00'}`;
+    } catch {
+      return isEnd ? "2099-12-31T23:59:59" : new Date().toISOString().split('T')[0] + "T00:00:00";
+    }
+  };
+
+  const isShippingFromOverseas = wingSettings.countryCode && wingSettings.countryCode !== 'KR';
+  const isOverseasProduct = product.overseasPurchase || isShippingFromOverseas;
   const deliveryMethod = isOverseasProduct ? "AGENT_BUY" : "SEQUENCIAL";
-  console.log(`[Delivery] Method: ${deliveryMethod}, Overseas: ${isOverseasProduct}`);
 
   let cleanBrand = (product.brand || "").trim();
   if (cleanBrand.includes("입력하세요") || cleanBrand.includes("예)") || cleanBrand.length > 100) {
     cleanBrand = cleanBrand.substring(0, 100);
   }
 
-  const payload = {
+  const sellerProductName = (sellerProductNameOverride || product.productName || "").substring(0, 100);
+
+  return {
     displayCategoryCode: categoryCode,
-    sellerProductName: (product.productName || "").substring(0, 100),
+    sellerProductName: sellerProductName,
     vendorId: vendorId,
     saleStartedAt: formatDate(product.saleStartDate, false),
     saleEndedAt: formatDate(product.saleEndDate, true),
-    displayProductName: cleanBrand ? `${cleanBrand} ${product.productName}`.substring(0, 100) : (product.productName || "").substring(0, 100),
+    displayProductName: cleanBrand ? `${cleanBrand} ${sellerProductName}`.substring(0, 100) : sellerProductName,
     brand: cleanBrand.substring(0, 100),
-    generalProductName: (product.productName || "").substring(0, 100),
+    generalProductName: sellerProductName,
     productGroup: "",
     deliveryMethod: deliveryMethod,
     deliveryCompanyCode: (wingSettings.deliveryCompanyCode || "CJGLS"),
@@ -1315,8 +1611,7 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
     outboundShippingPlaceCode: parseInt(wingSettings.outboundShippingPlaceCode) || 0,
     vendorUserId: wingSettings.vendorUserId || "",
     requested: true,
-    items: [item],
-    contents: contents,
+    items: items,
     requiredDocuments: [],
     extraInfoMessage: "",
     manufacture: product.manufacturer || product.brand || "",
@@ -1324,8 +1619,69 @@ export function transformProductToCoupangFormat(product: any, vendorId: string, 
       bundleType: "SINGLE"
     }
   };
+}
 
-  return payload;
+// Transform a single product (backwards compatible - wraps helpers)
+export function transformProductToCoupangFormat(product: any, vendorId: string, wingSettings: any, notices?: any[], categoryMeta?: any): any {
+  const item = buildSingleItem(product, wingSettings, notices, categoryMeta);
+  console.log(`[Transform] Created single-item product (SKU: ${item.externalVendorSku})`);
+  return buildProductPayload(product, vendorId, wingSettings, [item]);
+}
+
+// Transform a variant group into a single Coupang product with multiple items
+export function transformVariantGroupToCoupangFormat(
+  variantProducts: any[],
+  vendorId: string,
+  wingSettings: any,
+  notices?: any[],
+  categoryMeta?: any
+): any {
+  if (variantProducts.length === 0) throw new Error('No variant products provided');
+
+  // First product in group is the "parent" — provides product-level info
+  const parentProduct = variantProducts[0];
+  const commonProductName = deriveCommonProductName(variantProducts);
+
+  // Build one item per variant
+  const items: any[] = [];
+  for (let i = 0; i < variantProducts.length; i++) {
+    const variant = variantProducts[i];
+    const item = buildSingleItem(variant, wingSettings, notices, categoryMeta, commonProductName);
+    items.push(item);
+    console.log(`[Variants] Built item ${i + 1}/${variantProducts.length}: "${item.itemName}" @ ₩${item.salePrice}`);
+  }
+
+  console.log(`[Variants] Created multi-item product with ${items.length} variant(s) under "${commonProductName}"`);
+  return buildProductPayload(parentProduct, vendorId, wingSettings, items, commonProductName);
+}
+
+function validateVariantGroupForUpload(variantProducts: any[], wingSettings: any): string[] {
+  const errors: string[] = [];
+
+  if (!Array.isArray(variantProducts) || variantProducts.length === 0) {
+    return ['Variant group is empty'];
+  }
+
+  const categories = new Set(
+    variantProducts
+      .map(product => String(product?.category || '').trim())
+      .filter(Boolean)
+  );
+
+  if (categories.size > 1) {
+    errors.push('All rows in a variant group must use the same category');
+  }
+
+  variantProducts.forEach((product, index) => {
+    const validation = validateProductForUpload(product, wingSettings);
+    if (!validation.valid) {
+      validation.errors.forEach(error => {
+        errors.push(`Variant ${index + 1}: ${error}`);
+      });
+    }
+  });
+
+  return errors;
 }
 
 export function validateProductForUpload(product: any, wingSettings: any): { valid: boolean; errors: string[] } {
@@ -1352,14 +1708,28 @@ export function validateProductForUpload(product: any, wingSettings: any): { val
     errors.push("Main image must be a valid URL starting with http:// or https://");
   }
 
-  // Required attributes validation for common categories
-  const productName = product.productName?.toLowerCase() || '';
-  const hasVolumeInName = /\d+\s*(ml|l|밀리|리터)/i.test(productName);
-  const hasWeightInName = /\d+\s*(g|kg|그램|킬로)/i.test(productName);
+  // Required product attributes — Coupang shows these on the product page
+  // "Capacity per unit × Quantity : 30ml × 1"
+  if (!product.quantity || !product.quantity.trim()) {
+    errors.push('Quantity (수량) is required. Example: "1개", "2개", "30 tablets". Add a "Quantity" column in your CSV.');
+  }
 
-  // If no volume/weight in name and not provided explicitly, warn user
-  if (!hasVolumeInName && !hasWeightInName && !product.volume && !product.weight) {
-    errors.push("Volume or Weight is required. Add 'volume' column (e.g., 200ml) or 'weight' column (e.g., 100g) to your Excel, or include it in the product name.");
+  if (!product.volume && !product.weight) {
+    // Check if volume/weight can be found in product name or option values
+    const productName = product.productName?.toLowerCase() || '';
+    const hasVolumeInName = /\d+\s*(ml|l|밀리|리터)/i.test(productName);
+    const hasWeightInName = /\d+\s*(g|kg|그램|킬로)/i.test(productName);
+    const optionValuesCombined = [
+      product.optionValue1 || '',
+      product.optionValue2 || '',
+      product.optionValue3 || '',
+      product.optionValue4 || ''
+    ].join(' ');
+    const hasUnitInOptions = /\d+\s*(ml|l|g|kg|mg|oz|개|정|캡슐|팩|봉)/i.test(optionValuesCombined);
+
+    if (!hasVolumeInName && !hasWeightInName && !hasUnitInOptions) {
+      errors.push('Volume or Weight is required. Add a "Volume" column (e.g., "30ml", "500ml") or "Weight" column (e.g., "200g") in your CSV. This shows as "Capacity per unit" on the Coupang product page.');
+    }
   }
 
   if (!wingSettings.returnCenterCode) errors.push("Return Center Code is required (from Wing settings)");
@@ -1510,6 +1880,91 @@ export async function uploadProduct(
     };
   }
 }
+export async function uploadVariantGroup(
+  variantProducts: any[],
+  accessKey: string,
+  secretKey: string,
+  vendorId: string,
+  wingSettings: any,
+  notices?: any[],
+  categoryMeta?: any
+): Promise<{ success: boolean; productId?: string; error?: string; details?: any; payload?: any; variantCount?: number }> {
+  const method = "POST";
+  const path = `/v2/providers/seller_api/apis/api/v1/marketplace/seller-products`;
+  const query = "";
+
+  try {
+    const parentProduct = variantProducts[0];
+  const commonProductName = deriveCommonProductName(variantProducts);
+    const groupErrors = validateVariantGroupForUpload(variantProducts, wingSettings);
+    if (groupErrors.length > 0) {
+      return {
+        success: false,
+        error: `Validation failed: ${groupErrors.join(', ')}`,
+        details: { validationErrors: groupErrors }
+      };
+    }
+
+    const rawPayload = transformVariantGroupToCoupangFormat(variantProducts, vendorId, wingSettings, notices, categoryMeta);
+    const payload = sanitizeProductPayload(rawPayload);
+
+    console.log(`[Upload] Uploading variant group: ${parentProduct.productName} (${variantProducts.length} variants)`);
+    console.log('[Upload] Payload:', JSON.stringify(payload, null, 2).slice(0, 3000));
+
+    const response = await callCoupangApi(method, path, query, accessKey, secretKey, payload);
+    const responseText = await response.text();
+    console.log('[Upload] Response status:', response.status);
+    console.log('[Upload] Response body:', responseText.slice(0, 1000));
+
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      responseData = { rawResponse: responseText };
+    }
+
+    const isHttpSuccess = response.status === 200 || response.status === 201;
+    const isCoupangSuccess = responseData.code === 'SUCCESS';
+
+    if (isHttpSuccess && isCoupangSuccess) {
+      return {
+        success: true,
+        productId: responseData.data?.sellerProductId || responseData.sellerProductId,
+        details: responseData,
+        payload: payload,
+        variantCount: variantProducts.length
+      };
+    } else {
+      let errorMsg = `HTTP ${response.status}`;
+      if (responseData.code === 'ERROR' && responseData.message) {
+        errorMsg = responseData.message;
+      } else if (responseData.message) {
+        errorMsg = responseData.message;
+      } else if (responseData.data?.message) {
+        errorMsg = responseData.data.message;
+      } else if (responseData.error) {
+        errorMsg = responseData.error;
+      }
+
+      console.log('[Upload] Variant group rejected by Coupang:', errorMsg);
+      return {
+        success: false,
+        error: errorMsg,
+        details: responseData,
+        payload: payload,
+        variantCount: variantProducts.length
+      };
+    }
+  } catch (error: unknown) {
+    console.error('[Upload] Variant group error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return {
+      success: false,
+      error: errorMessage,
+      variantCount: variantProducts.length
+    };
+  }
+}
 
 export async function batchUpload(
   products: any[],
@@ -1524,10 +1979,68 @@ export async function batchUpload(
 
   const categoryMetaCache = new Map<number, any>();
 
+  // Step 1: Group products by productGroup field
+  const groupMap = new Map<string, any[]>();
+  const standaloneProducts: { index: number; product: any }[] = [];
+
   for (let i = 0; i < products.length; i++) {
     const product = products[i];
+    const groupId = product.productGroup?.trim();
+    if (groupId) {
+      if (!groupMap.has(groupId)) {
+        groupMap.set(groupId, []);
+      }
+      groupMap.get(groupId)!.push(product);
+    } else {
+      standaloneProducts.push({ index: i, product });
+    }
+  }
 
-    console.log(`[Batch] Processing product ${i + 1}/${products.length}: ${product.productName}`);
+  const totalGroups = groupMap.size + standaloneProducts.length;
+  console.log(`[Batch] ${products.length} rows → ${totalGroups} upload(s) (${groupMap.size} variant group(s), ${standaloneProducts.length} standalone)`);
+
+  let uploadIndex = 0;
+
+  // Step 2: Upload variant groups (each group = 1 Coupang product with multiple items)
+  for (const [groupId, groupProducts] of groupMap) {
+    uploadIndex++;
+    console.log(`[Batch] Processing variant group ${uploadIndex}/${totalGroups}: "${groupId}" (${groupProducts.length} variants)`);
+
+    let notices: any[] = [];
+    let categoryMeta: any = null;
+    try {
+      const categoryCode = extractDisplayCategoryCode(groupProducts[0].category);
+      if (categoryCode > 0) {
+        categoryMeta = await fetchCategoryRelatedMeta(categoryCode, accessKey, secretKey, categoryMetaCache);
+        notices = buildNoticesFromCategoryMeta(groupProducts[0], wingSettings, categoryMeta);
+      }
+    } catch (err) {
+      console.error(`[Batch] Failed to fetch category meta for group "${groupId}":`, err);
+    }
+
+    const result = await uploadVariantGroup(groupProducts, accessKey, secretKey, vendorId, wingSettings, notices, categoryMeta);
+
+    results.push({
+      productIndex: uploadIndex - 1,
+      productName: `${groupProducts[0].productName} (${groupProducts.length} variants)`,
+      groupId: groupId,
+      variantCount: groupProducts.length,
+      ...result
+    });
+
+    if (result.success) {
+      successCount++;
+    } else {
+      failedCount++;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 150));
+  }
+
+  // Step 3: Upload standalone products (single item each)
+  for (const { product } of standaloneProducts) {
+    uploadIndex++;
+    console.log(`[Batch] Processing standalone ${uploadIndex}/${totalGroups}: ${product.productName}`);
 
     let notices: any[] = [];
     let categoryMeta: any = null;
@@ -1536,16 +2049,15 @@ export async function batchUpload(
       if (categoryCode > 0) {
         categoryMeta = await fetchCategoryRelatedMeta(categoryCode, accessKey, secretKey, categoryMetaCache);
         notices = buildNoticesFromCategoryMeta(product, wingSettings, categoryMeta);
-        console.log(`[Batch] Generated ${notices.length} notice(s) for product ${i + 1}`);
       }
     } catch (err) {
-      console.error(`[Batch] Failed to fetch category meta for product ${i + 1}:`, err);
+      console.error(`[Batch] Failed to fetch category meta for standalone:`, err);
     }
 
     const result = await uploadProduct(product, accessKey, secretKey, vendorId, wingSettings, notices, categoryMeta);
 
     results.push({
-      productIndex: i,
+      productIndex: uploadIndex - 1,
       productName: product.productName,
       ...result
     });
@@ -1556,7 +2068,7 @@ export async function batchUpload(
       failedCount++;
     }
 
-    if (i < products.length - 1) {
+    if (uploadIndex < totalGroups) {
       await new Promise(resolve => setTimeout(resolve, 150));
     }
   }
