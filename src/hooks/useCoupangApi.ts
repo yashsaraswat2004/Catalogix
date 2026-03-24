@@ -404,6 +404,87 @@ export function useCoupangApi() {
     }
   }, []);
 
+  // Batch recommend categories for all products that lack one
+  const batchRecommendCategories = useCallback(async (
+    credentials: CoupangApiCredentials,
+    products: ParsedProduct[],
+    onProgress?: (current: number, total: number, lastProductName: string, lastCategoryCode?: string) => void,
+    abortSignal?: AbortSignal
+  ): Promise<{
+    updated: number;
+    skipped: number;
+    failed: number;
+    results: Map<string, { categoryCode: string; categoryName: string }>;
+  }> => {
+    const results = new Map<string, { categoryCode: string; categoryName: string }>();
+    let updated = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    // Filter to products that need a category
+    const needsCategory = products.filter(p => {
+      const hasCategory = p.data.category && String(p.data.category).trim().length > 0;
+      const hasName = p.data.productName && p.data.productName.trim().length >= 3;
+      if (hasCategory) {
+        skipped++;
+        return false;
+      }
+      if (!hasName) {
+        skipped++;
+        return false;
+      }
+      return true;
+    });
+
+    const total = needsCategory.length;
+
+    for (let i = 0; i < needsCategory.length; i++) {
+      // Check for abort
+      if (abortSignal?.aborted) {
+        break;
+      }
+
+      const product = needsCategory[i];
+      const productName = product.data.productName || '';
+
+      try {
+        const { data, error: fnError } = await invokeFunction('coupang-api', {
+          action: 'recommend-category',
+          credentials: {
+            accessKey: credentials.accessKey,
+            secretKey: credentials.secretKey,
+            vendorId: credentials.vendorId,
+          },
+          productName,
+          productDescription: product.data.detailedDescription,
+          brand: product.data.brand,
+        });
+
+        if (fnError || !data?.success) {
+          failed++;
+          onProgress?.(i + 1, total, productName);
+        } else {
+          updated++;
+          results.set(product.id, {
+            categoryCode: data.categoryCode,
+            categoryName: data.categoryName,
+          });
+          onProgress?.(i + 1, total, productName, data.categoryCode);
+        }
+      } catch {
+        failed++;
+        onProgress?.(i + 1, total, productName);
+      }
+
+      // Rate limit: 200ms delay between calls
+      if (i < needsCategory.length - 1 && !abortSignal?.aborted) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
+
+    return { updated, skipped, failed, results };
+  }, []);
+
   return {
     isValidating,
     isUploading,
@@ -416,6 +497,7 @@ export function useCoupangApi() {
     fetchShippingCenters,
     translateProducts,
     recommendCategory,
+    batchRecommendCategories,
     validateCategory,
     fetchCategoryMeta,
     clearError: () => setError(null),

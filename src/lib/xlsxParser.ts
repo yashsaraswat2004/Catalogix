@@ -196,14 +196,14 @@ export function parseXlsxFile(file: File): Promise<ParsedProduct[]> {
           mapCol('weight', ['중량', 'weight']);
 
           // Option Types and Values
-          mapCol('optionType1', ['구매옵션유형1']);
-          mapCol('optionValue1', ['구매옵션값1']);
-          mapCol('optionType2', ['구매옵션유형2']);
-          mapCol('optionValue2', ['구매옵션값2']);
-          mapCol('optionType3', ['구매옵션유형3']);
-          mapCol('optionValue3', ['구매옵션값3']);
-          mapCol('optionType4', ['구매옵션유형4']);
-          mapCol('optionValue4', ['구매옵션값4']);
+          mapCol('optionType1', ['구매옵션유형1', 'option type 1', 'option_type_1', 'option1 type']);
+          mapCol('optionValue1', ['구매옵션값1', 'option value 1', 'option_value_1', 'option1 value']);
+          mapCol('optionType2', ['구매옵션유형2', 'option type 2', 'option_type_2', 'option2 type']);
+          mapCol('optionValue2', ['구매옵션값2', 'option value 2', 'option_value_2', 'option2 value']);
+          mapCol('optionType3', ['구매옵션유형3', 'option type 3', 'option_type_3', 'option3 type']);
+          mapCol('optionValue3', ['구매옵션값3', 'option value 3', 'option_value_3', 'option3 value']);
+          mapCol('optionType4', ['구매옵션유형4', 'option type 4', 'option_type_4', 'option4 type']);
+          mapCol('optionValue4', ['구매옵션값4', 'option value 4', 'option_value_4', 'option4 value']);
 
           // Find additional image columns (Additional Image 1, Additional Image 2, ...)
           // These are separate columns that need to be collected after row parsing

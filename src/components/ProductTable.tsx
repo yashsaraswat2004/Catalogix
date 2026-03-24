@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ParsedProduct, FIELD_LABELS_EN, CoupangProduct, EDITABLE_FIELDS, CoupangApiCredentials } from '@/types/coupang';
 import { revalidateProduct, COLUMN_INDICES } from '@/lib/xlsxParser';
 import {
@@ -60,8 +60,10 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
   const [editedData, setEditedData] = useState<Partial<CoupangProduct>>({});
   const [recommendingCategory, setRecommendingCategory] = useState<string | null>(null);
+  const [batchCategoryProgress, setBatchCategoryProgress] = useState<{ current: number; total: number } | null>(null);
+  const batchAbortRef = useRef<AbortController | null>(null);
 
-  const { recommendCategory } = useCoupangApi();
+  const { recommendCategory, batchRecommendCategories } = useCoupangApi();
 
   const variantGroupCounts = products.reduce((acc, product) => {
     const groupId = product.data.productGroup?.trim();
@@ -181,6 +183,77 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
       toast.error('Failed to recommend category');
     } finally {
       setRecommendingCategory(null);
+    }
+  };
+
+  const handleBatchRecommendCategories = async () => {
+    if (!credentials || !onProductUpdate) {
+      toast.error('Please configure API credentials first');
+      return;
+    }
+
+    const abortController = new AbortController();
+    batchAbortRef.current = abortController;
+    setBatchCategoryProgress({ current: 0, total: 0 });
+
+    try {
+      const result = await batchRecommendCategories(
+        credentials,
+        products,
+        (current, total, lastProductName, lastCategoryCode) => {
+          setBatchCategoryProgress({ current, total });
+
+          // Update the product immediately as the result arrives
+          if (lastCategoryCode) {
+            const product = products.find(p => p.data.productName === lastProductName || 
+              products.filter(pp => !pp.data.category || String(pp.data.category).trim().length === 0)[current - 1]?.data.productName === lastProductName
+            );
+            // We'll apply all updates at the end via results map
+          }
+        },
+        abortController.signal
+      );
+
+      // Apply all successful results to products
+      for (const [productId, { categoryCode }] of result.results) {
+        const product = products.find(p => p.id === productId);
+        if (product && onProductUpdate) {
+          const updatedProduct: ParsedProduct = {
+            ...product,
+            data: { ...product.data, category: categoryCode },
+          };
+          const revalidated = revalidateProduct(updatedProduct);
+          onProductUpdate(revalidated);
+        }
+      }
+
+      // Show summary toast
+      const parts: string[] = [];
+      if (result.updated > 0) parts.push(`${result.updated} updated`);
+      if (result.skipped > 0) parts.push(`${result.skipped} skipped`);
+      if (result.failed > 0) parts.push(`${result.failed} failed`);
+
+      if (result.updated > 0) {
+        toast.success(`Categories auto-filled: ${parts.join(', ')}`);
+      } else if (result.skipped > 0 && result.failed === 0) {
+        toast.info('All products already have category codes or lack product names.');
+      } else {
+        toast.error(`Category auto-fill completed: ${parts.join(', ')}`);
+      }
+    } catch (err) {
+      if (!abortController.signal.aborted) {
+        toast.error('Failed to auto-fill categories');
+      }
+    } finally {
+      setBatchCategoryProgress(null);
+      batchAbortRef.current = null;
+    }
+  };
+
+  const handleCancelBatchCategory = () => {
+    if (batchAbortRef.current) {
+      batchAbortRef.current.abort();
+      toast.info('Category auto-fill cancelled');
     }
   };
 
@@ -337,6 +410,37 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
           <span className="text-muted-foreground">
             Rows sharing the same Product Group upload as one Coupang product with multiple selectable items.
           </span>
+          <div className="ml-auto flex items-center gap-2">
+            {batchCategoryProgress ? (
+              <>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                  <span>Fetching categories: <strong className="text-foreground">{batchCategoryProgress.current}/{batchCategoryProgress.total}</strong></span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
+                  onClick={handleCancelBatchCategory}
+                >
+                  <X className="w-3 h-3" />
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                onClick={handleBatchRecommendCategories}
+                disabled={!credentials || products.length === 0}
+                title="Auto-detect and fill category codes for all products that don't have one"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Auto-fill All Categories
+              </Button>
+            )}
+          </div>
         </div>
         {variantRowCount > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">

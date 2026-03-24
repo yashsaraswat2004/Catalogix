@@ -385,17 +385,92 @@ export function buildNoticesFromCategoryMeta(product: any, wingSettings: any, me
   });
 }
 
-// Check if a value is invalid/placeholder (like "1", "0", empty, etc.)
+// Check if a value is invalid/placeholder (like "0", empty, etc.)
+// IMPORTANT: Only reject truly meaningless values, not legitimate option data
 function isInvalidAttributeValue(value: string | undefined | null): boolean {
   if (!value) return true;
   const trimmed = String(value).trim();
   if (trimmed === '') return true;
-  // Check for placeholder values
-  if (/^[0-9]+$/.test(trimmed)) return true; // Just numbers like "1", "123"
+  // Only reject single-digit placeholders "0" and "1" (common Excel defaults)
+  // Do NOT reject larger numbers like "100", "2", "3" etc. as they may be legitimate
+  if (trimmed === '0' || trimmed === '1') return true;
   if (trimmed.toLowerCase() === 'n/a') return true;
   if (trimmed.toLowerCase() === 'none') return true;
   if (trimmed === '-') return true;
   return false;
+}
+
+// English-to-Korean option type name translation map
+const OPTION_TYPE_TRANSLATION: Record<string, string> = {
+  'quantity': '수량',
+  'qty': '수량',
+  'weight': '개당 중량',
+  'weight per unit': '개당 중량',
+  'net weight': '개당 중량',
+  'volume': '개당 용량',
+  'capacity': '개당 용량',
+  'volume per unit': '개당 용량',
+  'size': '사이즈',
+  'color': '색상',
+  'colour': '색상',
+  'type': '종류',
+  'flavor': '맛',
+  'flavour': '맛',
+  'scent': '향',
+  'pack size': '개당 수량',
+  'count': '수량',
+};
+
+/**
+ * Translate English option type names to Korean equivalents.
+ * Returns the original value if no translation is found.
+ */
+function translateOptionTypeName(typeName: string): string {
+  if (!typeName) return typeName;
+  const lower = typeName.trim().toLowerCase();
+  return OPTION_TYPE_TRANSLATION[lower] || typeName.trim();
+}
+
+/**
+ * Normalize English option values to Coupang-compatible format.
+ * Translates English unit words to Korean units and ensures number+unit format.
+ * Examples: "1 pieces" → "1개", "100g" → "100g", "2 packs" → "2팩"
+ */
+function normalizeOptionValue(value: string, typeName?: string): string {
+  if (!value) return value;
+  let str = value.trim();
+
+  // Unit word replacements (English → Korean/standard)
+  const unitReplacements: [RegExp, string][] = [
+    [/\bpieces?\b/gi, '개'],
+    [/\bpcs?\b/gi, '개'],
+    [/\bea\b/gi, '개'],
+    [/\bunits?\b/gi, '개'],
+    [/\bpacks?\b/gi, '팩'],
+    [/\bsets?\b/gi, '세트'],
+    [/\bboxe?s?\b/gi, '박스'],
+    [/\bbags?\b/gi, '봉'],
+    [/\btablets?\b/gi, '정'],
+    [/\btabs?\b/gi, '정'],
+    [/\bcapsules?\b/gi, '캡슐'],
+    [/\bcaps?\b/gi, '캡슐'],
+    [/\bgrams?\b/gi, 'g'],
+    [/\bgm\b/gi, 'g'],
+    [/\bkilograms?\b/gi, 'kg'],
+    [/\bmilligrams?\b/gi, 'mg'],
+    [/\bmilliliters?\b/gi, 'ml'],
+    [/\bliters?\b/gi, 'L'],
+    [/\bounces?\b/gi, 'oz'],
+  ];
+
+  for (const [pattern, replacement] of unitReplacements) {
+    str = str.replace(pattern, replacement);
+  }
+
+  // Remove extra spaces between number and unit: "1 개" → "1개"
+  str = str.replace(/(\d+)\s+([a-zA-Z가-힣]+)/, '$1$2');
+
+  return str.trim();
 }
 
 function extractCountFromText(text: string, patterns: string[]): string | null {
@@ -890,35 +965,32 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   const combined = `${productName} ${description} ${searchKeywords}`;
 
   // Collect user-provided options - VALIDATE THEM FIRST
+  // Filter out option types that overlap with mandatory attributes (수량, 개당 용량, 개당 중량)
+  // Those are handled by dedicated quantity/volume/weight columns with proper validation
+  const MANDATORY_OVERLAP_NAMES = new Set(['수량', '개당 용량', '개당 중량', '용량', '중량']);
   const userProvidedOptions: Array<{ type: string; value: string }> = [];
 
-  // Check each option pair and only add if BOTH are valid
-  if (!isInvalidAttributeValue(product.optionType1) && !isInvalidAttributeValue(product.optionValue1)) {
-    userProvidedOptions.push({ type: product.optionType1.trim(), value: product.optionValue1.trim() });
-    console.log(`[Attributes] User option 1: ${product.optionType1} = ${product.optionValue1}`);
-  } else if (product.optionType1 || product.optionValue1) {
-    console.log(`[Attributes] Ignoring invalid option 1: type="${product.optionType1}", value="${product.optionValue1}"`);
-  }
+  const optionSlots = [
+    { type: product.optionType1, value: product.optionValue1, num: 1 },
+    { type: product.optionType2, value: product.optionValue2, num: 2 },
+    { type: product.optionType3, value: product.optionValue3, num: 3 },
+    { type: product.optionType4, value: product.optionValue4, num: 4 },
+  ];
 
-  if (!isInvalidAttributeValue(product.optionType2) && !isInvalidAttributeValue(product.optionValue2)) {
-    userProvidedOptions.push({ type: product.optionType2.trim(), value: product.optionValue2.trim() });
-    console.log(`[Attributes] User option 2: ${product.optionType2} = ${product.optionValue2}`);
-  } else if (product.optionType2 || product.optionValue2) {
-    console.log(`[Attributes] Ignoring invalid option 2: type="${product.optionType2}", value="${product.optionValue2}"`);
-  }
-
-  if (!isInvalidAttributeValue(product.optionType3) && !isInvalidAttributeValue(product.optionValue3)) {
-    userProvidedOptions.push({ type: product.optionType3.trim(), value: product.optionValue3.trim() });
-    console.log(`[Attributes] User option 3: ${product.optionType3} = ${product.optionValue3}`);
-  } else if (product.optionType3 || product.optionValue3) {
-    console.log(`[Attributes] Ignoring invalid option 3: type="${product.optionType3}", value="${product.optionValue3}"`);
-  }
-
-  if (!isInvalidAttributeValue(product.optionType4) && !isInvalidAttributeValue(product.optionValue4)) {
-    userProvidedOptions.push({ type: product.optionType4.trim(), value: product.optionValue4.trim() });
-    console.log(`[Attributes] User option 4: ${product.optionType4} = ${product.optionValue4}`);
-  } else if (product.optionType4 || product.optionValue4) {
-    console.log(`[Attributes] Ignoring invalid option 4: type="${product.optionType4}", value="${product.optionValue4}"`);
+  for (const slot of optionSlots) {
+    if (!isInvalidAttributeValue(slot.type) && !isInvalidAttributeValue(slot.value)) {
+      const translatedType = translateOptionTypeName(slot.type);
+      // Skip if this option type overlaps with mandatory attributes
+      if (MANDATORY_OVERLAP_NAMES.has(translatedType.toLowerCase()) || MANDATORY_OVERLAP_NAMES.has(slot.type.toLowerCase())) {
+        console.log(`[Attributes] Skipping option ${slot.num}: "${slot.type}" → "${translatedType}" (handled by dedicated column, value: ${slot.value})`);
+        continue;
+      }
+      const normalizedValue = normalizeOptionValue(slot.value.trim(), slot.type);
+      userProvidedOptions.push({ type: translatedType, value: normalizedValue });
+      console.log(`[Attributes] User option ${slot.num}: ${slot.type} -> ${translatedType} = ${normalizedValue}`);
+    } else if (slot.type || slot.value) {
+      console.log(`[Attributes] Ignoring invalid option ${slot.num}: type="${slot.type}", value="${slot.value}"`);
+    }
   }
 
   // Categorize attributes from metadata
@@ -1011,14 +1083,9 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
       usedAttrNames.add(matchingAttr.attributeTypeName.toLowerCase());
       console.log(`[Attributes] Used user-provided: ${matchingAttr.attributeTypeName}=${finalValue} (matched from "${userOption.type}")`);
     } else {
-      // No category meta match — still add the user option as-is so it's not silently lost
-      // This ensures attributes like user-supplied units are always included in the payload
-      attributes.push({
-        attributeTypeName: userOption.type.substring(0, 25),
-        attributeValueName: userOption.value.substring(0, 30)
-      });
-      usedAttrNames.add(userOption.type.toLowerCase());
-      console.log(`[Attributes] No category match for "${userOption.type}" — added as-is: ${userOption.type}=${userOption.value}`);
+      // No category meta match — DO NOT add unmatched attributes to the payload
+      // Coupang will reject any attribute that is not defined in the category metadata
+      console.log(`[Attributes] SKIPPED "${userOption.type}" — not a valid attribute for this category (value: ${userOption.value})`);
     }
   }
 
@@ -1110,14 +1177,21 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     return extractedValue || '상세페이지 참조';
   };
 
+  // Helper to check if a concept is already fulfilled by user options or explicitly provided in CSV
+  const hasConcept = (koreanTerms: string[], englishTerm: string, csvField: any) => {
+    return attributes.some(a => {
+      const typeName = (a.attributeTypeName || '').toLowerCase();
+      return koreanTerms.some(term => typeName.includes(term)) || typeName.includes(englishTerm);
+    }) || !!(csvField && String(csvField).trim());
+  };
+
   // 1. Add 수량 ONLY if it exists in category metadata
-  const hasQuantity = attributes.some(a => a.attributeTypeName?.includes('수량'));
+  const hasQuantity = hasConcept(['수량', '개수'], 'quantity', product.quantity);
   if (!hasQuantity) {
     const qtyMeta = findAttrMeta('수량');
     if (qtyMeta) {
-      const explicitQty = product.quantity;
       const extractedQty = extractQuantityFromText(combined);
-      const qtyValue = getValidValue(qtyMeta, explicitQty || extractedQty);
+      const qtyValue = getValidValue(qtyMeta, extractedQty);
       if (qtyValue) {
         attributes.push({
           attributeTypeName: qtyMeta.attributeTypeName.substring(0, 25),
@@ -1131,8 +1205,8 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   }
 
   // 2. Add 개당 용량/중량 ONLY if it exists in category metadata
-  const hasVolume = attributes.some(a => a.attributeTypeName?.includes('용량'));
-  const hasWeight = attributes.some(a => a.attributeTypeName?.includes('중량'));
+  const hasVolume = hasConcept(['용량', '부피'], 'volume', product.volume);
+  const hasWeight = hasConcept(['중량', '무게'], 'weight', product.weight);
 
   if (!hasVolume && !hasWeight) {
     const volumeMeta = findAttrMeta('용량');
@@ -1140,6 +1214,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
 
     const explicitVolume = product.volume;
     const explicitWeight = product.weight;
+
     // Search ALL combined text for volume/weight, not just productName
     const extractedVolume = extractVolumeFromText(combined);
     const extractedWeight = extractWeightFromText(combined);
@@ -1169,37 +1244,66 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
     }
   }
 
-  // SAFETY NET: Include user-provided quantity/volume/weight from CSV
-  // Even if NOT in category metadata, Coupang needs these for the product display line:
-  // "Capacity per unit × Quantity : 30ml × 1"
-  // IMPORTANT: Only add if user actually provided data — NO hardcoded defaults
+  // SAFETY NET: ALWAYS include user-provided quantity/volume/weight from CSV
+  // These are required by Coupang for the purchase option display line
+  // Validate against category metadata when available, but still add with defaults when not
   const finalAttrNames = new Set(attributes.map(a => (a.attributeTypeName || '').toLowerCase()));
 
   if (product.quantity && !finalAttrNames.has('수량') && !attributes.some(a => a.attributeTypeName?.includes('수량'))) {
+    const qtyMeta = findAttrMeta('수량');
     const val = ensureUnit(product.quantity, '개');
-    attributes.push({
-      attributeTypeName: "수량",
-      attributeValueName: val.substring(0, 30)
-    });
-    console.log(`[Attributes] SAFETY NET: Added 수량=${val} from CSV`);
+    if (qtyMeta) {
+      const validatedVal = getValidValue(qtyMeta, val) || val;
+      attributes.push({
+        attributeTypeName: qtyMeta.attributeTypeName.substring(0, 25),
+        attributeValueName: validatedVal.substring(0, 30)
+      });
+      console.log(`[Attributes] SAFETY NET: Added ${qtyMeta.attributeTypeName}=${validatedVal} (validated against category meta)`);
+    } else {
+      attributes.push({
+        attributeTypeName: "수량",
+        attributeValueName: val.substring(0, 30)
+      });
+      console.log(`[Attributes] SAFETY NET: Added 수량=${val} (no meta, using default)`);
+    }
   }
 
   if (product.volume && !finalAttrNames.has('개당 용량') && !finalAttrNames.has('용량') && !attributes.some(a => a.attributeTypeName?.includes('용량'))) {
+    const volMeta = findAttrMeta('용량');
     const val = ensureUnit(product.volume, 'ml');
-    attributes.push({
-      attributeTypeName: "개당 용량",
-      attributeValueName: val.substring(0, 30)
-    });
-    console.log(`[Attributes] SAFETY NET: Added 개당 용량=${val} from CSV`);
+    if (volMeta) {
+      const validatedVal = getValidValue(volMeta, val) || val;
+      attributes.push({
+        attributeTypeName: volMeta.attributeTypeName.substring(0, 25),
+        attributeValueName: validatedVal.substring(0, 30)
+      });
+      console.log(`[Attributes] SAFETY NET: Added ${volMeta.attributeTypeName}=${validatedVal} (validated against category meta)`);
+    } else {
+      attributes.push({
+        attributeTypeName: "개당 용량",
+        attributeValueName: val.substring(0, 30)
+      });
+      console.log(`[Attributes] SAFETY NET: Added 개당 용량=${val} (no meta, using default)`);
+    }
   }
 
   if (product.weight && !finalAttrNames.has('개당 중량') && !finalAttrNames.has('중량') && !attributes.some(a => a.attributeTypeName?.includes('중량'))) {
+    const wtMeta = findAttrMeta('중량');
     const val = ensureUnit(product.weight, 'g');
-    attributes.push({
-      attributeTypeName: "개당 중량",
-      attributeValueName: val.substring(0, 30)
-    });
-    console.log(`[Attributes] SAFETY NET: Added 개당 중량=${val} from CSV`);
+    if (wtMeta) {
+      const validatedVal = getValidValue(wtMeta, val) || val;
+      attributes.push({
+        attributeTypeName: wtMeta.attributeTypeName.substring(0, 25),
+        attributeValueName: validatedVal.substring(0, 30)
+      });
+      console.log(`[Attributes] SAFETY NET: Added ${wtMeta.attributeTypeName}=${validatedVal} (validated against category meta)`);
+    } else {
+      attributes.push({
+        attributeTypeName: "개당 중량",
+        attributeValueName: val.substring(0, 30)
+      });
+      console.log(`[Attributes] SAFETY NET: Added 개당 중량=${val} (no meta, using default)`);
+    }
   }
 
   console.log(`[Attributes] Final attributes count: ${attributes.length}`);
@@ -1283,7 +1387,12 @@ function collectVariantOptionPairs(product: any): Array<{ type: string; value: s
     { type: product.optionType4, value: product.optionValue4 },
   ];
 
-  return pairs.filter(pair => !isInvalidAttributeValue(pair.type) && !isInvalidAttributeValue(pair.value));
+  return pairs
+    .filter(pair => !isInvalidAttributeValue(pair.type) && !isInvalidAttributeValue(pair.value))
+    .map(pair => ({
+      type: translateOptionTypeName(pair.type),
+      value: normalizeOptionValue(pair.value, pair.type)
+    }));
 }
 
 function trimVariantName(name: string): string {
@@ -1355,36 +1464,41 @@ function buildSingleItem(product: any, wingSettings: any, notices?: any[], categ
     console.log(`[Transform] Built ${attributes.length} attributes from category metadata`);
   } else {
     attributes = [];
-    if (product.optionType1 && product.optionValue1) {
+
+    // Mandatory attribute names that should NOT be populated from user option columns
+    // These are handled by dedicated quantity/volume/weight columns instead
+    const MANDATORY_ATTR_NAMES = new Set(['수량', '개당 용량', '개당 중량', '용량', '중량', 'quantity', 'volume', 'weight', 'capacity']);
+    
+    // Only add user option types that DON'T overlap with mandatory attributes
+    // Option types like "Quantity"/"수량" are already handled by the quantity column
+    const optionPairs = [
+      { type: product.optionType1, value: product.optionValue1 },
+      { type: product.optionType2, value: product.optionValue2 },
+      { type: product.optionType3, value: product.optionValue3 },
+      { type: product.optionType4, value: product.optionValue4 },
+    ];
+
+    for (const pair of optionPairs) {
+      if (!pair.type || !pair.value) continue;
+      const translatedType = translateOptionTypeName(pair.type);
+      if (MANDATORY_ATTR_NAMES.has(translatedType.toLowerCase()) || MANDATORY_ATTR_NAMES.has(pair.type.toLowerCase())) {
+        console.log(`[Attributes] Fallback: Skipping option "${pair.type}" → "${translatedType}" (handled by dedicated column)`);
+        continue;
+      }
       attributes.push({
-        attributeTypeName: product.optionType1.substring(0, 25),
-        attributeValueName: product.optionValue1.substring(0, 30)
+        attributeTypeName: translatedType.substring(0, 25),
+        attributeValueName: normalizeOptionValue(pair.value, pair.type).substring(0, 30)
       });
-    }
-    if (product.optionType2 && product.optionValue2) {
-      attributes.push({
-        attributeTypeName: product.optionType2.substring(0, 25),
-        attributeValueName: product.optionValue2.substring(0, 30)
-      });
-    }
-    if (product.optionType3 && product.optionValue3) {
-      attributes.push({
-        attributeTypeName: product.optionType3.substring(0, 25),
-        attributeValueName: product.optionValue3.substring(0, 30)
-      });
-    }
-    if (product.optionType4 && product.optionValue4) {
-      attributes.push({
-        attributeTypeName: product.optionType4.substring(0, 25),
-        attributeValueName: product.optionValue4.substring(0, 30)
-      });
+      console.log(`[Attributes] Fallback: Added option "${pair.type}" → ${translatedType}=${normalizeOptionValue(pair.value, pair.type)}`);
     }
 
-    // Add quantity, volume, weight from CSV if available (NO hardcoded defaults)
+    // Add quantity, volume, weight from dedicated CSV columns
     const usedTypeNames = new Set(attributes.map(a => a.attributeTypeName.toLowerCase()));
+    const hasQuantity = usedTypeNames.has('수량');
+    const hasVolume = usedTypeNames.has('개당 용량') || usedTypeNames.has('용량');
+    const hasWeight = usedTypeNames.has('개당 중량') || usedTypeNames.has('중량');
 
-    // Add 수량 (quantity) only if provided in CSV
-    if (product.quantity && !usedTypeNames.has('수량')) {
+    if (product.quantity && !hasQuantity) {
       const val = ensureUnit(product.quantity, '개');
       attributes.push({
         attributeTypeName: "수량",
@@ -1393,8 +1507,7 @@ function buildSingleItem(product: any, wingSettings: any, notices?: any[], categ
       console.log(`[Attributes] Added 수량=${val} from CSV`);
     }
 
-    // Add 개당 용량 (volume per unit) if provided in CSV
-    if (product.volume && !usedTypeNames.has('개당 용량') && !usedTypeNames.has('용량')) {
+    if (product.volume && !hasVolume) {
       const val = ensureUnit(product.volume, 'ml');
       attributes.push({
         attributeTypeName: "개당 용량",
@@ -1403,8 +1516,7 @@ function buildSingleItem(product: any, wingSettings: any, notices?: any[], categ
       console.log(`[Attributes] Added 개당 용량=${val} from CSV`);
     }
 
-    // Add 개당 중량 (weight per unit) if provided in CSV
-    if (product.weight && !usedTypeNames.has('개당 중량') && !usedTypeNames.has('중량')) {
+    if (product.weight && !hasWeight) {
       const val = ensureUnit(product.weight, 'g');
       attributes.push({
         attributeTypeName: "개당 중량",
@@ -1651,6 +1763,48 @@ export function transformVariantGroupToCoupangFormat(
     console.log(`[Variants] Built item ${i + 1}/${variantProducts.length}: "${item.itemName}" @ ₩${item.salePrice}`);
   }
 
+  // === DEDUPLICATION: Coupang requires unique itemNames and unique attribute combos ===
+  const nameCount = new Map<string, number>();
+  for (const item of items) {
+    nameCount.set(item.itemName, (nameCount.get(item.itemName) || 0) + 1);
+  }
+
+  const hasDuplicateNames = [...nameCount.values()].some(c => c > 1);
+  if (hasDuplicateNames) {
+    console.log('[Variants] Duplicate itemNames detected — differentiating using product names');
+
+    // Derive unique suffix for each variant from its product name
+    for (let i = 0; i < items.length; i++) {
+      const variantName = String(variantProducts[i].productName || '').trim();
+      let suffix = '';
+
+      // Try to extract the unique part after the common prefix
+      if (commonProductName && variantName.toLowerCase().startsWith(commonProductName.toLowerCase())) {
+        suffix = trimVariantName(variantName.slice(commonProductName.length));
+      }
+
+      // If no useful suffix, use the full variant name or index
+      if (!suffix) {
+        suffix = variantName || `Variant ${i + 1}`;
+      }
+
+      items[i].itemName = suffix.substring(0, 150);
+    }
+
+    // If STILL duplicates after suffix extraction, append index to make unique
+    const seen = new Map<string, number>();
+    for (let i = 0; i < items.length; i++) {
+      const name = items[i].itemName;
+      const count = seen.get(name) || 0;
+      if (count > 0) {
+        items[i].itemName = `${name} (${count + 1})`.substring(0, 150);
+      }
+      seen.set(name, count + 1);
+    }
+
+    console.log('[Variants] Deduplicated itemNames:', items.map((it: any) => it.itemName));
+  }
+
   console.log(`[Variants] Created multi-item product with ${items.length} variant(s) under "${commonProductName}"`);
   return buildProductPayload(parentProduct, vendorId, wingSettings, items, commonProductName);
 }
@@ -1680,6 +1834,27 @@ function validateVariantGroupForUpload(variantProducts: any[], wingSettings: any
       });
     }
   });
+
+  // Check for duplicate variant options (Coupang requires unique option combos within a group)
+  const optionKeys = new Set<string>();
+  let hasDuplicates = false;
+  
+  for (let i = 0; i < variantProducts.length; i++) {
+    const p = variantProducts[i];
+    const options = [
+      p.optionValue1, p.optionValue2, p.optionValue3, p.optionValue4
+    ].map(v => String(v || '').trim()).filter(Boolean).join(' | ');
+    
+    const key = options === '' ? '__empty__' : options;
+    if (optionKeys.has(key)) {
+      hasDuplicates = true;
+    }
+    optionKeys.add(key);
+  }
+
+  if (hasDuplicates) {
+    errors.push('Duplicate Option Values. Each variant row in the group must have a UNIQUE combination of Option Type/Value (e.g. Size: Small, Size: Large). Please check your CSV.');
+  }
 
   return errors;
 }
@@ -1909,7 +2084,15 @@ export async function uploadVariantGroup(
     const payload = sanitizeProductPayload(rawPayload);
 
     console.log(`[Upload] Uploading variant group: ${parentProduct.productName} (${variantProducts.length} variants)`);
-    console.log('[Upload] Payload:', JSON.stringify(payload, null, 2).slice(0, 3000));
+    console.log(`[Upload] Category: "${parentProduct.category}" → displayCategoryCode: ${payload.displayCategoryCode}`);
+    console.log(`[Upload] Category metadata available: ${!!categoryMeta}, mandatory attrs: ${categoryMeta?.attributeTypeMetas?.filter((a: any) => a.required === 'MANDATORY').length || 0}`);
+    // Debug: Log the exact attributes being sent for each item
+    if (payload.items) {
+      payload.items.forEach((item: any, idx: number) => {
+        console.log(`[Upload] Item ${idx + 1} "${item.itemName}" attributes:`, JSON.stringify(item.attributes));
+      });
+    }
+    console.log('[Upload] Payload items:', JSON.stringify(payload.items?.map((i: any) => ({ name: i.itemName, attrs: i.attributes, price: i.salePrice })), null, 2));
 
     const response = await callCoupangApi(method, path, query, accessKey, secretKey, payload);
     const responseText = await response.text();

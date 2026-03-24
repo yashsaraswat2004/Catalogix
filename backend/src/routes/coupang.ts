@@ -3,6 +3,7 @@ import {
   validateCredentials,
   validateProductForUpload,
   transformProductToCoupangFormat,
+  transformVariantGroupToCoupangFormat,
   batchUpload,
   fetchShippingCenters,
   fetchDisplayCategoryStatus,
@@ -122,22 +123,76 @@ router.post('/', async (req: Request, res: Response) => {
         if (dryRun) {
           console.log('[API] Dry run mode - validating without API calls');
           
-          const transformedProducts = products.map((p: any, idx: number) => {
-            const validation = validateProductForUpload(p, wingSettings);
-            let transformed = null;
-            
-            if (validation.valid) {
-              transformed = transformProductToCoupangFormat(p, vendorId, wingSettings);
+          // Group products by productGroup (mirroring batchUpload logic)
+          const groupMap = new Map<string, any[]>();
+          const standaloneProducts: { index: number; product: any }[] = [];
+
+          for (let i = 0; i < products.length; i++) {
+            const product = products[i];
+            const groupId = product.productGroup?.trim();
+            if (groupId) {
+              if (!groupMap.has(groupId)) {
+                groupMap.set(groupId, []);
+              }
+              groupMap.get(groupId)!.push(product);
+            } else {
+              standaloneProducts.push({ index: i, product });
             }
-            
-            return {
-              index: idx,
-              productName: p.productName,
+          }
+
+          const transformedProducts: any[] = [];
+
+          // Validate variant groups
+          for (const [groupId, groupProducts] of groupMap) {
+            const groupErrors: string[] = [];
+            const categories = new Set(
+              groupProducts.map((p: any) => String(p.category || '').trim()).filter(Boolean)
+            );
+            if (categories.size > 1) {
+              groupErrors.push('All rows in a variant group must use the same category');
+            }
+            groupProducts.forEach((p: any, idx: number) => {
+              const validation = validateProductForUpload(p, wingSettings);
+              if (!validation.valid) {
+                validation.errors.forEach((err: string) => groupErrors.push(`Variant ${idx + 1}: ${err}`));
+              }
+            });
+
+            let transformed = null;
+            if (groupErrors.length === 0) {
+              try {
+                transformed = transformVariantGroupToCoupangFormat(groupProducts, vendorId, wingSettings);
+              } catch (err) {
+                groupErrors.push(`Transform error: ${err instanceof Error ? err.message : 'Unknown'}`);
+              }
+            }
+
+            transformedProducts.push({
+              index: transformedProducts.length,
+              productName: `${groupProducts[0].productName} (${groupProducts.length} variants)`,
+              groupId,
+              variantCount: groupProducts.length,
+              valid: groupErrors.length === 0,
+              errors: groupErrors,
+              transformed
+            });
+          }
+
+          // Validate standalone products
+          for (const { product } of standaloneProducts) {
+            const validation = validateProductForUpload(product, wingSettings);
+            let transformed = null;
+            if (validation.valid) {
+              transformed = transformProductToCoupangFormat(product, vendorId, wingSettings);
+            }
+            transformedProducts.push({
+              index: transformedProducts.length,
+              productName: product.productName,
               valid: validation.valid,
               errors: validation.errors,
-              transformed: transformed
-            };
-          });
+              transformed
+            });
+          }
           
           const validCount = transformedProducts.filter((p: any) => p.valid).length;
           const invalidCount = transformedProducts.filter((p: any) => !p.valid).length;
@@ -146,7 +201,7 @@ router.post('/', async (req: Request, res: Response) => {
             success: invalidCount === 0,
             dryRun: true,
             message: invalidCount === 0 
-              ? `All ${validCount} products are valid and ready for upload.`
+              ? `All ${validCount} product(s) are valid and ready for upload.`
               : `${invalidCount} product(s) have validation errors. Please fix them before uploading.`,
             validCount,
             invalidCount,

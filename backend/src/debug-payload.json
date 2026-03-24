@@ -1,0 +1,574 @@
+{
+  "categoryMeta": {
+    "attributeTypeMetas": []
+  },
+  "payload": {
+    "displayCategoryCode": 63981,
+    "sellerProductName": "콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g",
+    "vendorId": "C01492435",
+    "saleStartedAt": "2026-03-24T00:00:00",
+    "saleEndedAt": "2099-12-31T23:59:59",
+    "displayProductName": "Colgate 콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g",
+    "brand": "Colgate",
+    "generalProductName": "콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g",
+    "productGroup": "",
+    "deliveryMethod": "AGENT_BUY",
+    "deliveryCompanyCode": "DIRECT",
+    "deliveryChargeType": "FREE",
+    "deliveryCharge": 0,
+    "freeShipOverAmount": 0,
+    "deliveryChargeOnReturn": 2500,
+    "remoteAreaDeliverable": "N",
+    "unionDeliveryType": "NOT_UNION_DELIVERY",
+    "returnCenterCode": "1002305778",
+    "returnChargeName": "CrescentEtail",
+    "companyContactNumber": "9920600198",
+    "returnZipCode": "400708",
+    "returnAddress": "[400708] Airoli Navi Mumbai, Maharastra, Shop no.2 Plot no. 56, Sector 9 E 9920600198",
+    "returnAddressDetail": "[400708] Navi Mumbai, Airoli 8928885434",
+    "returnCharge": 2500,
+    "outboundShippingPlaceCode": 23473425,
+    "vendorUserId": "crescentetail0",
+    "requested": true,
+    "items": [
+      {
+        "itemName": "1개",
+        "originalPrice": 15990,
+        "salePrice": 13890,
+        "maximumBuyCount": 10,
+        "maximumBuyForPerson": 0,
+        "maximumBuyForPersonPeriod": 1,
+        "outboundShippingTimeDay": 12,
+        "unitCount": 1,
+        "adultOnly": "EVERYONE",
+        "taxType": "TAX",
+        "parallelImported": "NOT_PARALLEL_IMPORTED",
+        "overseasPurchased": "OVERSEAS_PURCHASED",
+        "pccNeeded": true,
+        "externalVendorSku": "B0DMWHBVGT",
+        "barcode": "",
+        "emptyBarcode": true,
+        "emptyBarcodeReason": "상품확인불가_바코드없음사유",
+        "modelNo": "B0DMWHBVGT-1",
+        "certifications": [
+          {
+            "certificationType": "NOT_REQUIRED",
+            "certificationCode": ""
+          }
+        ],
+        "searchTags": [
+          "콜게이트 맥스프레쉬 치약",
+          "콜게이트 수박 치약",
+          "수박 젤 치약",
+          "치약 100g",
+          "젤 치약 수박",
+          "구강 관리 치약",
+          "매일 치약",
+          "민트 젤 치약",
+          "치과 관리 치약",
+          "치약 튜브 100g",
+          "구강 위생 치약",
+          "양치질 치약",
+          "콜게이트 구강 관리",
+          "젤 치약 맛",
+          "가정용 치약",
+          "과일 맛 치약",
+          "치과 위생 치약",
+          "치약 패키지",
+          "콜게이트 치과 관리",
+          "일상 치약"
+        ],
+        "images": [
+          {
+            "imageOrder": 0,
+            "imageType": "REPRESENTATION",
+            "vendorPath": "https://m.media-amazon.com/images/I/71uXjnp4ehL._SL1500_.jpg"
+          },
+          {
+            "imageOrder": 1,
+            "imageType": "DETAIL",
+            "vendorPath": "https://m.media-amazon.com/images/I/71c1QkFkiDL._SL1500_.jpg"
+          },
+          {
+            "imageOrder": 2,
+            "imageType": "DETAIL",
+            "vendorPath": "https://m.media-amazon.com/images/I/71zET612ZqL._SL1500_.jpg"
+          }
+        ],
+        "attributes": [
+          {
+            "attributeTypeName": "수량",
+            "attributeValueName": "1개"
+          },
+          {
+            "attributeTypeName": "개당 중량",
+            "attributeValueName": "100g"
+          }
+        ],
+        "contents": [
+          {
+            "contentsType": "HTML",
+            "contentDetails": [
+              {
+                "content": "<div style=\"max-width:900px; margin:0 auto; padding:30px 20px; font-family:'Malgun Gothic','맑은 고딕',sans-serif; color:#333; line-height:1.8; font-size:15px;\">\n<h2 style=\"font-size:22px; font-weight:bold; color:#111; margin-bottom:20px; padding-bottom:15px; border-bottom:2px solid #e0e0e0;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g</h2>\n<div style=\"background:#f8f9fa; padding:12px 16px; border-radius:6px; margin-bottom:25px; font-size:14px; color:#555;\">\n<span><strong>브랜드:</strong> Colgate</span>\n<span style=\"margin:0 12px; color:#ddd;\">|</span>\n<span><strong>제조사:</strong> Colgate-Palmolive (India) Ltd.</span>\n</div>\n<div style=\"margin-bottom:20px;\">\n<p style=\"margin-bottom:12px; text-align:justify;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">젤 타입 치약 | 수박 향 | 다채로운 젤 포뮬러 | 매일 구강 케어</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약은 매일의 구강 관리 루틴을 위해 설계되었습니다. 부드러운 젤 포뮬러는 칫솔에 쉽게 펴 발리고 양치질하는 동안 상쾌한 수박 향을 선사합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">젤 타입의 질감은 편안한 양치질 경험을 제공하며 사용 후 입안을 깨끗하고 상쾌하게 유지하는 데 도움을 줍니다. 편리한 100g 튜브는 가정이나 여행에 적합하며 일상적인 구강 위생 루틴에 쉽게 통합됩니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 주요 특징</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 매일 구강 케어를 위한 젤 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 상쾌한 수박 향</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 쉬운 양치질을 위한 부드러운 젤 질감</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 편리한 100g 튜브 포장</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 정기적인 구강 관리 루틴에 적합</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">🍉 질감 &amp; 경험</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 부드러운 젤 타입 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 양치질 시 수박 향</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 사용 후 깨끗하고 상쾌한 입안 느낌</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">💡 사용 방법</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 칫솔에 치약 소량을 덜어주세요.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 약 2분 동안 부드럽게 양치질하세요.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 물로 충분히 헹구세요.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 매일의 구강 관리 루틴의 일부로 규칙적으로 사용하세요.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">⚠️ 주의사항</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 삼키지 마세요.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 어린이의 손이 닿지 않는 곳에 보관하세요.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 서늘하고 건조한 곳에 보관하세요.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">📌 제품 상세 정보</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 브랜드: Colgate</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 제품명: Colgate MaxFresh Watermelon Blast Gel Toothpaste</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 용량: 100g</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 형태: 젤 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 카테고리: 구강 관리 / 치약</p>\n</div>\n</div>",
+                "detailType": "TEXT"
+              }
+            ]
+          },
+          {
+            "contentsType": "IMAGE",
+            "contentDetails": [
+              {
+                "content": "https://m.media-amazon.com/images/I/71c1QkFkiDL._SL1500_.jpg",
+                "detailType": "IMAGE"
+              }
+            ]
+          },
+          {
+            "contentsType": "IMAGE",
+            "contentDetails": [
+              {
+                "content": "https://m.media-amazon.com/images/I/71zET612ZqL._SL1500_.jpg",
+                "detailType": "IMAGE"
+              }
+            ]
+          }
+        ],
+        "offerCondition": "NEW",
+        "offerDescription": "",
+        "notices": [
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "품명 및 모델명",
+            "content": "콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g (B0DMWHBVGT-1)"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "인증/허가 사항",
+            "content": "해당없음"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "제조국(원산지)",
+            "content": "해외(상세페이지 참조)"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "제조자(수입자)",
+            "content": "Colgate-Palmolive (India) Ltd."
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "소비자상담 관련 전화번호",
+            "content": "9920600198"
+          }
+        ]
+      },
+      {
+        "itemName": "2개입",
+        "originalPrice": 19950,
+        "salePrice": 17990,
+        "maximumBuyCount": 10,
+        "maximumBuyForPerson": 0,
+        "maximumBuyForPersonPeriod": 1,
+        "outboundShippingTimeDay": 12,
+        "unitCount": 1,
+        "adultOnly": "EVERYONE",
+        "taxType": "TAX",
+        "parallelImported": "NOT_PARALLEL_IMPORTED",
+        "overseasPurchased": "OVERSEAS_PURCHASED",
+        "pccNeeded": true,
+        "externalVendorSku": "B0DMWHBVGT",
+        "barcode": "",
+        "emptyBarcode": true,
+        "emptyBarcodeReason": "상품확인불가_바코드없음사유",
+        "modelNo": "B0DMWHBVGT-2",
+        "certifications": [
+          {
+            "certificationType": "NOT_REQUIRED",
+            "certificationCode": ""
+          }
+        ],
+        "searchTags": [
+          "콜게이트 맥스프레쉬 치약",
+          "콜게이트 수박 치약",
+          "수박 젤 치약",
+          "치약 100g",
+          "젤 치약 수박",
+          "구강 관리 치약",
+          "매일 치약",
+          "민트 젤 치약",
+          "치과 케어 치약",
+          "치약 튜브 100g",
+          "구강 위생 치약",
+          "양치질 치약",
+          "콜게이트 구강 케어",
+          "젤 치약 맛",
+          "가정용 치약",
+          "과일 맛 치약",
+          "치아 위생 치약",
+          "치약 패키지",
+          "콜게이트 치과 케어",
+          "일상 치약"
+        ],
+        "images": [
+          {
+            "imageOrder": 0,
+            "imageType": "REPRESENTATION",
+            "vendorPath": "https://m.media-amazon.com/images/I/71uXjnp4ehL._SL1500_.jpg"
+          },
+          {
+            "imageOrder": 1,
+            "imageType": "DETAIL",
+            "vendorPath": "https://m.media-amazon.com/images/I/71c1QkFkiDL._SL1500_.jpg"
+          },
+          {
+            "imageOrder": 2,
+            "imageType": "DETAIL",
+            "vendorPath": "https://m.media-amazon.com/images/I/71zET612ZqL._SL1500_.jpg"
+          }
+        ],
+        "attributes": [
+          {
+            "attributeTypeName": "수량",
+            "attributeValueName": "2개"
+          },
+          {
+            "attributeTypeName": "개당 중량",
+            "attributeValueName": "100g"
+          }
+        ],
+        "contents": [
+          {
+            "contentsType": "HTML",
+            "contentDetails": [
+              {
+                "content": "<div style=\"max-width:900px; margin:0 auto; padding:30px 20px; font-family:'Malgun Gothic','맑은 고딕',sans-serif; color:#333; line-height:1.8; font-size:15px;\">\n<h2 style=\"font-size:22px; font-weight:bold; color:#111; margin-bottom:20px; padding-bottom:15px; border-bottom:2px solid #e0e0e0;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g (상쾌한 구강 케어)</h2>\n<div style=\"background:#f8f9fa; padding:12px 16px; border-radius:6px; margin-bottom:25px; font-size:14px; color:#555;\">\n<span><strong>브랜드:</strong> Colgate</span>\n<span style=\"margin:0 12px; color:#ddd;\">|</span>\n<span><strong>제조사:</strong> Colgate-Palmolive (India) Ltd.</span>\n</div>\n<div style=\"margin-bottom:20px;\">\n<p style=\"margin-bottom:12px; text-align:justify;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">젤 타입 치약 | 수박 향 | 컬러풀한 젤 포뮬러 | 매일 구강 케어</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약은 매일의 구강 케어 루틴을 위해 설계되었습니다. 부드러운 젤 포뮬러는 칫솔에 쉽게 펴 발리고, 양치질하는 동안 상쾌한 수박 향을 선사합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">젤 타입의 질감은 편안한 양치질 경험을 제공하며, 사용 후 입안을 깨끗하고 상쾌하게 유지하는 데 도움을 줍니다. 편리한 100g 튜브는 가정용 또는 여행용으로 적합하며, 일상적인 구강 위생 루틴에 쉽게 통합됩니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 주요 특징</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 매일 구강 케어를 위한 젤 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 상쾌한 수박 향</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 부드러운 젤 질감으로 간편한 양치질</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 편리한 100g 튜브 포장</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 정기적인 구강 케어 루틴에 적합</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 질감 &amp; 경험</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 부드러운 젤 타입 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 양치질 시 수박 향</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 사용 후 깨끗하고 상쾌한 입안 느낌</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 사용 방법</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 칫솔에 치약 소량을 덜어 사용합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 약 2분 동안 부드럽게 양치질합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 물로 충분히 헹굽니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 매일의 구강 케어 루틴의 일부로 규칙적으로 사용하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 주의사항</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 삼키지 마십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 어린이의 손이 닿지 않는 곳에 보관하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 서늘하고 건조한 곳에 보관하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 제품 상세 정보</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">브랜드: Colgate</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">제품명: Colgate MaxFresh Watermelon Blast Gel Toothpaste</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">용량: 100g</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">제형: 젤 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">카테고리: 구강 관리 / 치약</p>\n</div>\n</div>",
+                "detailType": "TEXT"
+              }
+            ]
+          },
+          {
+            "contentsType": "IMAGE",
+            "contentDetails": [
+              {
+                "content": "https://m.media-amazon.com/images/I/71c1QkFkiDL._SL1500_.jpg",
+                "detailType": "IMAGE"
+              }
+            ]
+          },
+          {
+            "contentsType": "IMAGE",
+            "contentDetails": [
+              {
+                "content": "https://m.media-amazon.com/images/I/71zET612ZqL._SL1500_.jpg",
+                "detailType": "IMAGE"
+              }
+            ]
+          }
+        ],
+        "offerCondition": "NEW",
+        "offerDescription": "",
+        "notices": [
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "품명 및 모델명",
+            "content": "콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g (B0DMWHBVGT-1)"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "인증/허가 사항",
+            "content": "해당없음"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "제조국(원산지)",
+            "content": "해외(상세페이지 참조)"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "제조자(수입자)",
+            "content": "Colgate-Palmolive (India) Ltd."
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "소비자상담 관련 전화번호",
+            "content": "9920600198"
+          }
+        ]
+      },
+      {
+        "itemName": "3개입",
+        "originalPrice": 25990,
+        "salePrice": 21690,
+        "maximumBuyCount": 10,
+        "maximumBuyForPerson": 0,
+        "maximumBuyForPersonPeriod": 1,
+        "outboundShippingTimeDay": 12,
+        "unitCount": 1,
+        "adultOnly": "EVERYONE",
+        "taxType": "TAX",
+        "parallelImported": "NOT_PARALLEL_IMPORTED",
+        "overseasPurchased": "OVERSEAS_PURCHASED",
+        "pccNeeded": true,
+        "externalVendorSku": "B0DMWHBVGT",
+        "barcode": "",
+        "emptyBarcode": true,
+        "emptyBarcodeReason": "상품확인불가_바코드없음사유",
+        "modelNo": "B0DMWHBVGT-3",
+        "certifications": [
+          {
+            "certificationType": "NOT_REQUIRED",
+            "certificationCode": ""
+          }
+        ],
+        "searchTags": [
+          "콜게이트 맥스프레쉬 치약",
+          "콜게이트 수박 치약",
+          "수박 젤 치약",
+          "치약 100g",
+          "젤 치약 수박",
+          "구강 관리 치약",
+          "매일 치약",
+          "민트 젤 치약",
+          "치과 케어 치약",
+          "치약 튜브 100g",
+          "구강 위생 치약",
+          "양치질 치약",
+          "콜게이트 구강 케어",
+          "젤 치약 맛",
+          "가정용 치약",
+          "과일 맛 치약",
+          "치아 위생 치약",
+          "치약 패키지",
+          "콜게이트 치과 케어",
+          "일상 치약"
+        ],
+        "images": [
+          {
+            "imageOrder": 0,
+            "imageType": "REPRESENTATION",
+            "vendorPath": "https://m.media-amazon.com/images/I/71uXjnp4ehL._SL1500_.jpg"
+          },
+          {
+            "imageOrder": 1,
+            "imageType": "DETAIL",
+            "vendorPath": "https://m.media-amazon.com/images/I/71c1QkFkiDL._SL1500_.jpg"
+          },
+          {
+            "imageOrder": 2,
+            "imageType": "DETAIL",
+            "vendorPath": "https://m.media-amazon.com/images/I/71zET612ZqL._SL1500_.jpg"
+          }
+        ],
+        "attributes": [
+          {
+            "attributeTypeName": "수량",
+            "attributeValueName": "3개"
+          },
+          {
+            "attributeTypeName": "개당 중량",
+            "attributeValueName": "100g"
+          }
+        ],
+        "contents": [
+          {
+            "contentsType": "HTML",
+            "contentDetails": [
+              {
+                "content": "<div style=\"max-width:900px; margin:0 auto; padding:30px 20px; font-family:'Malgun Gothic','맑은 고딕',sans-serif; color:#333; line-height:1.8; font-size:15px;\">\n<h2 style=\"font-size:22px; font-weight:bold; color:#111; margin-bottom:20px; padding-bottom:15px; border-bottom:2px solid #e0e0e0;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g (상쾌한 구강 케어)</h2>\n<div style=\"background:#f8f9fa; padding:12px 16px; border-radius:6px; margin-bottom:25px; font-size:14px; color:#555;\">\n<span><strong>브랜드:</strong> Colgate</span>\n<span style=\"margin:0 12px; color:#ddd;\">|</span>\n<span><strong>제조사:</strong> Colgate-Palmolive (India) Ltd.</span>\n</div>\n<div style=\"margin-bottom:20px;\">\n<p style=\"margin-bottom:12px; text-align:justify;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">젤 타입 치약 | 수박 향 | 다채로운 젤 포뮬러 | 매일 구강 케어</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약은 매일의 구강 케어 루틴을 위해 설계되었습니다. 부드러운 젤 포뮬러는 칫솔에 쉽게 펴 발리고 양치질하는 동안 상쾌한 수박 향을 선사합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">젤 타입의 질감은 편안한 양치질 경험을 제공하며 사용 후 입안을 깨끗하고 상쾌하게 유지하는 데 도움을 줍니다. 편리한 100g 튜브는 가정용 또는 여행용으로 적합하며 일상적인 구강 위생 루틴에 쉽게 통합됩니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 주요 특징</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 매일 구강 케어를 위한 젤 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 상쾌한 수박 향</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 쉬운 양치질을 위한 부드러운 젤 질감</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 편리한 100g 튜브 포장</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 정기적인 구강 케어 루틴에 적합</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">🍉 질감 &amp; 경험</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 부드러운 젤 타입 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 양치질 시 수박 향</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 사용 후 깨끗하고 상쾌한 입안 느낌</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">💡 사용 방법</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 칫솔에 치약 소량을 덜어 사용합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 약 2분 동안 치아를 부드럽게 닦습니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 물로 충분히 헹굽니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 매일의 구강 케어 루틴의 일부로 규칙적으로 사용하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">⚠️ 주의 사항</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 삼키지 마십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 어린이의 손이 닿지 않는 곳에 보관하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 서늘하고 건조한 곳에 보관하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">📌 제품 상세 정보</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 브랜드: Colgate</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 제품명: Colgate MaxFresh Watermelon Blast Gel Toothpaste</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 용량: 100g</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 형태: 젤 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 카테고리: 구강 관리 / 치약</p>\n</div>\n</div>",
+                "detailType": "TEXT"
+              }
+            ]
+          },
+          {
+            "contentsType": "IMAGE",
+            "contentDetails": [
+              {
+                "content": "https://m.media-amazon.com/images/I/71c1QkFkiDL._SL1500_.jpg",
+                "detailType": "IMAGE"
+              }
+            ]
+          },
+          {
+            "contentsType": "IMAGE",
+            "contentDetails": [
+              {
+                "content": "https://m.media-amazon.com/images/I/71zET612ZqL._SL1500_.jpg",
+                "detailType": "IMAGE"
+              }
+            ]
+          }
+        ],
+        "offerCondition": "NEW",
+        "offerDescription": "",
+        "notices": [
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "품명 및 모델명",
+            "content": "콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g (B0DMWHBVGT-1)"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "인증/허가 사항",
+            "content": "해당없음"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "제조국(원산지)",
+            "content": "해외(상세페이지 참조)"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "제조자(수입자)",
+            "content": "Colgate-Palmolive (India) Ltd."
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "소비자상담 관련 전화번호",
+            "content": "9920600198"
+          }
+        ]
+      },
+      {
+        "itemName": "4개입",
+        "originalPrice": 29990,
+        "salePrice": 24990,
+        "maximumBuyCount": 10,
+        "maximumBuyForPerson": 0,
+        "maximumBuyForPersonPeriod": 1,
+        "outboundShippingTimeDay": 12,
+        "unitCount": 1,
+        "adultOnly": "EVERYONE",
+        "taxType": "TAX",
+        "parallelImported": "NOT_PARALLEL_IMPORTED",
+        "overseasPurchased": "OVERSEAS_PURCHASED",
+        "pccNeeded": true,
+        "externalVendorSku": "B0DMWHBVGT",
+        "barcode": "",
+        "emptyBarcode": true,
+        "emptyBarcodeReason": "상품확인불가_바코드없음사유",
+        "modelNo": "B0DMWHBVGT-4",
+        "certifications": [
+          {
+            "certificationType": "NOT_REQUIRED",
+            "certificationCode": ""
+          }
+        ],
+        "searchTags": [
+          "콜게이트 맥스프레쉬 치약",
+          "콜게이트 수박 치약",
+          "수박 젤 치약",
+          "치약 100g",
+          "젤 치약 수박",
+          "구강 관리 치약",
+          "매일 치약",
+          "민트 젤 치약",
+          "치과 케어 치약",
+          "치약 튜브 100g",
+          "구강 위생 치약",
+          "양치질 치약",
+          "콜게이트 구강 케어",
+          "젤 치약 맛",
+          "가정용 치약",
+          "과일 맛 치약",
+          "치아 위생 치약",
+          "치약 패키지",
+          "콜게이트 치과 케어",
+          "일상 치약"
+        ],
+        "images": [
+          {
+            "imageOrder": 0,
+            "imageType": "REPRESENTATION",
+            "vendorPath": "https://m.media-amazon.com/images/I/71uXjnp4ehL._SL1500_.jpg"
+          },
+          {
+            "imageOrder": 1,
+            "imageType": "DETAIL",
+            "vendorPath": "https://m.media-amazon.com/images/I/71c1QkFkiDL._SL1500_.jpg"
+          },
+          {
+            "imageOrder": 2,
+            "imageType": "DETAIL",
+            "vendorPath": "https://m.media-amazon.com/images/I/71zET612ZqL._SL1500_.jpg"
+          }
+        ],
+        "attributes": [
+          {
+            "attributeTypeName": "수량",
+            "attributeValueName": "4개"
+          },
+          {
+            "attributeTypeName": "개당 중량",
+            "attributeValueName": "100g"
+          }
+        ],
+        "contents": [
+          {
+            "contentsType": "HTML",
+            "contentDetails": [
+              {
+                "content": "<div style=\"max-width:900px; margin:0 auto; padding:30px 20px; font-family:'Malgun Gothic','맑은 고딕',sans-serif; color:#333; line-height:1.8; font-size:15px;\">\n<h2 style=\"font-size:22px; font-weight:bold; color:#111; margin-bottom:20px; padding-bottom:15px; border-bottom:2px solid #e0e0e0;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g (상쾌한 구강 케어)</h2>\n<div style=\"background:#f8f9fa; padding:12px 16px; border-radius:6px; margin-bottom:25px; font-size:14px; color:#555;\">\n<span><strong>브랜드:</strong> Colgate</span>\n<span style=\"margin:0 12px; color:#ddd;\">|</span>\n<span><strong>제조사:</strong> Colgate-Palmolive (India) Ltd.</span>\n</div>\n<div style=\"margin-bottom:20px;\">\n<p style=\"margin-bottom:12px; text-align:justify;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">젤 타입 치약 | 수박 향 | 컬러풀한 젤 포뮬러 | 매일 구강 케어</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">콜게이트 맥스프레쉬 수박 블라스트 젤 치약은 매일의 구강 케어 루틴을 위해 설계되었습니다. 부드러운 젤 포뮬러는 칫솔에 쉽게 펴 발리고, 양치질하는 동안 상쾌한 수박 향을 선사합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">젤 타입의 질감은 편안한 양치질 경험을 제공하며, 사용 후 입안을 깨끗하고 상쾌하게 유지하는 데 도움을 줍니다. 편리한 100g 튜브는 가정용 또는 여행용으로 적합하며, 일상적인 구강 위생 루틴에 쉽게 통합됩니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 주요 특징</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 매일 구강 케어를 위한 젤 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 상쾌한 수박 향</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 부드러운 젤 질감으로 간편한 양치질</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 편리한 100g 튜브 포장</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 정기적인 구강 케어 루틴에 적합</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 질감 &amp; 경험</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 부드러운 젤 타입 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 양치질 시 수박 향</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 사용 후 깨끗하고 상쾌한 입안 느낌</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 사용 방법</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 칫솔에 치약 소량을 덜어 사용합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 약 2분 동안 부드럽게 양치질합니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 물로 충분히 헹굽니다.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 매일의 구강 케어 루틴의 일부로 규칙적으로 사용하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 주의사항</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 삼키지 마십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 어린이의 손이 닿지 않는 곳에 보관하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">- 서늘하고 건조한 곳에 보관하십시오.</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">✨ 제품 상세 정보</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">브랜드: Colgate</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">제품명: Colgate MaxFresh Watermelon Blast Gel Toothpaste</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">용량: 100g</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">제형: 젤 치약</p>\n<p style=\"margin-bottom:12px; text-align:justify;\">카테고리: 구강 관리 / 치약</p>\n</div>\n</div>",
+                "detailType": "TEXT"
+              }
+            ]
+          },
+          {
+            "contentsType": "IMAGE",
+            "contentDetails": [
+              {
+                "content": "https://m.media-amazon.com/images/I/71c1QkFkiDL._SL1500_.jpg",
+                "detailType": "IMAGE"
+              }
+            ]
+          },
+          {
+            "contentsType": "IMAGE",
+            "contentDetails": [
+              {
+                "content": "https://m.media-amazon.com/images/I/71zET612ZqL._SL1500_.jpg",
+                "detailType": "IMAGE"
+              }
+            ]
+          }
+        ],
+        "offerCondition": "NEW",
+        "offerDescription": "",
+        "notices": [
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "품명 및 모델명",
+            "content": "콜게이트 맥스프레쉬 수박 블라스트 젤 치약 - 100g (B0DMWHBVGT-1)"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "인증/허가 사항",
+            "content": "해당없음"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "제조국(원산지)",
+            "content": "해외(상세페이지 참조)"
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "제조자(수입자)",
+            "content": "Colgate-Palmolive (India) Ltd."
+          },
+          {
+            "noticeCategoryName": "기타 재화",
+            "noticeCategoryDetailName": "소비자상담 관련 전화번호",
+            "content": "9920600198"
+          }
+        ]
+      }
+    ],
+    "requiredDocuments": [],
+    "extraInfoMessage": "",
+    "manufacture": "Colgate-Palmolive (India) Ltd.",
+    "bundleInfo": {
+      "bundleType": "SINGLE"
+    }
+  }
+}

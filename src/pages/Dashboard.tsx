@@ -226,10 +226,30 @@ const Dashboard = () => {
   };
 
   const getProductsToUpload = () => {
-    return products.filter(p => 
-      selectedIds.has(p.id) && 
-      !p.validationErrors.some(e => e.severity === 'error')
-    );
+    // Step 1: Collect productGroup IDs from all selected products
+    const selectedGroupIds = new Set<string>();
+    for (const id of selectedIds) {
+      const product = products.find(p => p.id === id);
+      const groupId = product?.data.productGroup?.trim();
+      if (groupId) {
+        selectedGroupIds.add(groupId);
+      }
+    }
+
+    // Step 2: Build the upload set — selected products + their variant siblings
+    return products.filter(p => {
+      const hasErrors = p.validationErrors.some(e => e.severity === 'error');
+      if (hasErrors) return false;
+
+      // Directly selected
+      if (selectedIds.has(p.id)) return true;
+
+      // Auto-include: sibling of a selected variant group
+      const groupId = p.data.productGroup?.trim();
+      if (groupId && selectedGroupIds.has(groupId)) return true;
+
+      return false;
+    });
   };
 
   const isWingSettingsComplete = (): boolean => {
@@ -410,9 +430,18 @@ const Dashboard = () => {
         setUploadResults(result.results);
         
         const updatedProducts = products.map(p => {
-          const uploadResult = result.results?.find(
-            r => toUpload.some(up => up.id === p.id && up.data.productName === r.productName)
-          );
+          // Try matching by groupId first (for variant groups)
+          const groupId = p.data.productGroup?.trim();
+          let uploadResult = groupId
+            ? result.results?.find((r: any) => r.groupId === groupId)
+            : undefined;
+
+          // Fallback: match by productName (for standalone products)
+          if (!uploadResult) {
+            uploadResult = result.results?.find(
+              r => toUpload.some(up => up.id === p.id && up.data.productName === r.productName)
+            );
+          }
           
           if (uploadResult) {
             return {
