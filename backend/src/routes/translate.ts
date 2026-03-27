@@ -29,17 +29,18 @@ router.post('/', async (req: Request, res: Response) => {
 
     console.log(`[Translate] Translating ${products.length} products...`);
 
-    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const geminiApiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     
     if (!geminiApiKey) {
       console.error('[Translate] GEMINI_API_KEY not configured');
       return res.json({ success: false, error: 'Translation service not configured' });
     }
 
-    // Use Gemma 3 27B model - highest quality with 14.4K RPD, 30 RPM
-    const gemmaApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key=${geminiApiKey}`;
+    // Use dynamic Gemini model config
+    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
     
-    console.log('[Translate] Using Gemma 3 27B model for high-quality translation');
+    console.log(`[Translate] Using ${modelName} model for high-quality translation`);
 
     const translatedProducts = [];
 
@@ -93,7 +94,7 @@ Respond ONLY with a JSON object mapping field names to translated Korean text. E
 Do not include any explanation, just the JSON object.`;
 
       try {
-        const response = await fetch(gemmaApiUrl, {
+        const response = await fetch(geminiApiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -119,7 +120,7 @@ Do not include any explanation, just the JSON object.`;
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`[Translate] Gemma API error: ${response.status}`, errorText);
+          console.error(`[Translate] Gemini API error: ${response.status}`, errorText);
           
           // If rate limit exceeded, return helpful message
           if (response.status === 429) {

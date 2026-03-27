@@ -467,8 +467,9 @@ function normalizeOptionValue(value: string, typeName?: string): string {
     str = str.replace(pattern, replacement);
   }
 
-  // Remove extra spaces between number and unit: "1 개" → "1개"
-  str = str.replace(/(\d+)\s+([a-zA-Z가-힣]+)/, '$1$2');
+  // Remove extra spaces between number and unit: "1 개" → "1개", but ONLY for Korean units
+  // Do NOT match English letters, otherwise "110 Fair" becomes "110Fair", causing bizarre translations 
+  str = str.replace(/(\d+)\s+([가-힣]+)/g, '$1$2');
 
   return str.trim();
 }
@@ -910,27 +911,95 @@ function extractValueFromText(text: string, patterns: RegExp[]): string | null {
   return null;
 }
 
-// Helper to ensure a unit is present for attributes
+// Helper to ensure a unit is present for attributes and that it is a valid unit type
 function ensureUnit(value: any, defaultUnit: string): string {
   if (!value) return '';
-  let str = String(value).trim();
+  let str = String(value).trim().toLowerCase();
 
-  // Normalize common bad units BEFORE regex check
-  if (defaultUnit === 'g') {
-    str = str.replace(/gm$/i, 'g').replace(/grams?$/i, 'g');
-  } else if (defaultUnit === 'ml') {
-    str = str.replace(/milliliters?$/i, 'ml');
+  const match = str.match(/([\d.]+)/);
+  if (!match) return str; // If no number is found, return as is (could be "상세페이지 참조")
+  
+  const num = match[1];
+
+  // Identifiers for count/quantity units that typically cause errors in Volume/Weight columns
+  const isCountUnit = /(pcs?|pieces?|ea|개|pads?|tablets?|capsules?|정|캡슐|봉|매|팩|box(es)?|sets?)$/.test(str);
+
+  if (defaultUnit === 'g' || defaultUnit === 'ml') {
+    if (isCountUnit) {
+      console.log(`[Validation] Auto-correcting mismatched unit in "${str}" -> "${num}${defaultUnit}"`);
+      return `${num}${defaultUnit}`;
+    }
+    
+    // Normalize volume units
+    if (defaultUnit === 'ml') {
+      str = str.replace(/milliliters?$/, 'ml').replace(/리터/, 'l').replace(/밀리리터/, 'ml');
+      const hasValidVolUnit = /(ml|l|oz|fl\s*oz)$/.test(str);
+      if (!hasValidVolUnit) {
+        return `${num}${defaultUnit}`; // force valid unit if it has some weird random text
+      }
+    }
+    
+    // Normalize weight units
+    if (defaultUnit === 'g') {
+      str = str.replace(/gm$/, 'g').replace(/grams?$/, 'g').replace(/킬로그램/, 'kg').replace(/그램/, 'g');
+      const hasValidWtUnit = /(g|kg|mg|oz|lb)$/.test(str);
+      if (!hasValidWtUnit) {
+        return `${num}${defaultUnit}`; // force valid unit to prevent Coupang API rejection
+      }
+    }
   } else if (defaultUnit === '개') {
-    str = str.replace(/ea$/i, '개').replace(/pieces?$/i, '개');
+    str = str.replace(/ea$/, '개').replace(/pieces?$/, '개').replace(/pcs?$/, '개');
   }
 
   // Remove spaces before units (e.g., "100 g" -> "100g")
   str = str.replace(/\s+([a-zA-Z가-힣]+)$/, '$1');
 
-  // If it's just a number or number with decimal, append the default unit
+  // If it's just a number, append the default unit
   if (/^[\d.]+$/.test(str)) {
     return `${str}${defaultUnit}`;
   }
+  
+  return str;
+}
+
+/**
+ * Sanitize the quantity value from CSV.
+ * Detects when the Quantity column contains shade/color data (e.g. "140", "115 Ivory",
+ * "Shade 230", "Warm Nude") instead of actual item counts, and auto-corrects to "1ea".
+ */
+function sanitizeQuantity(value: string | undefined | null): string {
+  if (!value) return '';
+  const str = String(value).trim();
+  if (!str) return '';
+
+  // Valid patterns: "1ea", "2개", "3 pieces", "1", "2", "10"  (small numbers)
+  const validQtyPattern = /^\d+\s*(ea|개|pieces?|pcs?|units?|packs?|sets?|tabs?|tablets?|capsules?|봉|팩|세트|정|캡슐)?$/i;
+  if (validQtyPattern.test(str)) {
+    const num = parseInt(str.match(/^(\d+)/)![1], 10);
+    // Reasonable quantity is 1-99. Shade numbers are typically ≥100
+    if (num >= 1 && num <= 99) {
+      return str;
+    }
+  }
+
+  // If it contains color/shade keywords, it's definitely not a quantity
+  if (/shade|ivory|beige|nude|honey|sand|buff|toffee|caramel|golden|porcelain|fair|light|medium|dark|cappuc/i.test(str)) {
+    console.log(`[Quantity] Auto-corrected invalid quantity "${str}" → "1ea" (contains color/shade data)`);
+    return '1ea';
+  }
+
+  // If it's a large number with no unit (≥100), likely a shade number
+  if (/^\d+$/.test(str) && parseInt(str, 10) >= 100) {
+    console.log(`[Quantity] Auto-corrected invalid quantity "${str}" → "1ea" (likely shade number, not count)`);
+    return '1ea';
+  }
+
+  // If it contains letters but doesn't match a valid quantity pattern
+  if (/[a-zA-Z]/.test(str) && !validQtyPattern.test(str)) {
+    console.log(`[Quantity] Auto-corrected invalid quantity "${str}" → "1ea" (unrecognized format)`);
+    return '1ea';
+  }
+
   return str;
 }
 
@@ -1251,7 +1320,8 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
 
   if (product.quantity && !finalAttrNames.has('수량') && !attributes.some(a => a.attributeTypeName?.includes('수량'))) {
     const qtyMeta = findAttrMeta('수량');
-    const val = ensureUnit(product.quantity, '개');
+    const sanitizedQty = sanitizeQuantity(product.quantity);
+    const val = ensureUnit(sanitizedQty || '1ea', '개');
     if (qtyMeta) {
       const validatedVal = getValidValue(qtyMeta, val) || val;
       attributes.push({
@@ -1260,11 +1330,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
       });
       console.log(`[Attributes] SAFETY NET: Added ${qtyMeta.attributeTypeName}=${validatedVal} (validated against category meta)`);
     } else {
-      attributes.push({
-        attributeTypeName: "수량",
-        attributeValueName: val.substring(0, 30)
-      });
-      console.log(`[Attributes] SAFETY NET: Added 수량=${val} (no meta, using default)`);
+      console.log(`[Attributes] SAFETY NET: Skipped 수량=${val} (not supported by category meta)`);
     }
   }
 
@@ -1279,11 +1345,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
       });
       console.log(`[Attributes] SAFETY NET: Added ${volMeta.attributeTypeName}=${validatedVal} (validated against category meta)`);
     } else {
-      attributes.push({
-        attributeTypeName: "개당 용량",
-        attributeValueName: val.substring(0, 30)
-      });
-      console.log(`[Attributes] SAFETY NET: Added 개당 용량=${val} (no meta, using default)`);
+      console.log(`[Attributes] SAFETY NET: Skipped 개당 용량=${val} (not supported by category meta)`);
     }
   }
 
@@ -1298,11 +1360,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
       });
       console.log(`[Attributes] SAFETY NET: Added ${wtMeta.attributeTypeName}=${validatedVal} (validated against category meta)`);
     } else {
-      attributes.push({
-        attributeTypeName: "개당 중량",
-        attributeValueName: val.substring(0, 30)
-      });
-      console.log(`[Attributes] SAFETY NET: Added 개당 중량=${val} (no meta, using default)`);
+      console.log(`[Attributes] SAFETY NET: Skipped 개당 중량=${val} (not supported by category meta)`);
     }
   }
 
@@ -1465,49 +1523,20 @@ function buildSingleItem(product: any, wingSettings: any, notices?: any[], categ
   } else {
     attributes = [];
 
-    // Mandatory attribute names that should NOT be populated from user option columns
-    // These are handled by dedicated quantity/volume/weight columns instead
-    const MANDATORY_ATTR_NAMES = new Set(['수량', '개당 용량', '개당 중량', '용량', '중량', 'quantity', 'volume', 'weight', 'capacity']);
-    
-    // Only add user option types that DON'T overlap with mandatory attributes
-    // Option types like "Quantity"/"수량" are already handled by the quantity column
-    const optionPairs = [
-      { type: product.optionType1, value: product.optionValue1 },
-      { type: product.optionType2, value: product.optionValue2 },
-      { type: product.optionType3, value: product.optionValue3 },
-      { type: product.optionType4, value: product.optionValue4 },
-    ];
-
-    for (const pair of optionPairs) {
-      if (!pair.type || !pair.value) continue;
-      const translatedType = translateOptionTypeName(pair.type);
-      if (MANDATORY_ATTR_NAMES.has(translatedType.toLowerCase()) || MANDATORY_ATTR_NAMES.has(pair.type.toLowerCase())) {
-        console.log(`[Attributes] Fallback: Skipping option "${pair.type}" → "${translatedType}" (handled by dedicated column)`);
-        continue;
+    // Add quantity, volume, weight from dedicated CSV columns (fallback only)
+    if (product.quantity) {
+      const sanitizedQty = sanitizeQuantity(product.quantity);
+      if (sanitizedQty) {
+        const val = ensureUnit(sanitizedQty, '개');
+        attributes.push({
+          attributeTypeName: "수량",
+          attributeValueName: val.substring(0, 30)
+        });
+        console.log(`[Attributes] Added 수량=${val} from CSV (raw: "${product.quantity}")`);
       }
-      attributes.push({
-        attributeTypeName: translatedType.substring(0, 25),
-        attributeValueName: normalizeOptionValue(pair.value, pair.type).substring(0, 30)
-      });
-      console.log(`[Attributes] Fallback: Added option "${pair.type}" → ${translatedType}=${normalizeOptionValue(pair.value, pair.type)}`);
     }
 
-    // Add quantity, volume, weight from dedicated CSV columns
-    const usedTypeNames = new Set(attributes.map(a => a.attributeTypeName.toLowerCase()));
-    const hasQuantity = usedTypeNames.has('수량');
-    const hasVolume = usedTypeNames.has('개당 용량') || usedTypeNames.has('용량');
-    const hasWeight = usedTypeNames.has('개당 중량') || usedTypeNames.has('중량');
-
-    if (product.quantity && !hasQuantity) {
-      const val = ensureUnit(product.quantity, '개');
-      attributes.push({
-        attributeTypeName: "수량",
-        attributeValueName: val.substring(0, 30)
-      });
-      console.log(`[Attributes] Added 수량=${val} from CSV`);
-    }
-
-    if (product.volume && !hasVolume) {
+    if (product.volume) {
       const val = ensureUnit(product.volume, 'ml');
       attributes.push({
         attributeTypeName: "개당 용량",
@@ -1516,7 +1545,7 @@ function buildSingleItem(product: any, wingSettings: any, notices?: any[], categ
       console.log(`[Attributes] Added 개당 용량=${val} from CSV`);
     }
 
-    if (product.weight && !hasWeight) {
+    if (product.weight) {
       const val = ensureUnit(product.weight, 'g');
       attributes.push({
         attributeTypeName: "개당 중량",
@@ -1526,6 +1555,38 @@ function buildSingleItem(product: any, wingSettings: any, notices?: any[], categ
     }
 
     console.log(`[Attributes] Fallback path: ${attributes.length} attribute(s) total`);
+  }
+
+  // ALWAYS add user option types (Color, Type, etc.) regardless of path
+  // These differentiate variant items and must be present for Coupang to accept the group
+  const MANDATORY_ATTR_NAMES = new Set(['수량', '개당 용량', '개당 중량', '용량', '중량', 'quantity', 'volume', 'weight', 'capacity']);
+  const existingAttrNames = new Set(attributes.map(a => (a.attributeTypeName || '').toLowerCase()));
+
+  const optionPairs = [
+    { type: product.optionType1, value: product.optionValue1 },
+    { type: product.optionType2, value: product.optionValue2 },
+    { type: product.optionType3, value: product.optionValue3 },
+    { type: product.optionType4, value: product.optionValue4 },
+  ];
+
+  for (const pair of optionPairs) {
+    if (!pair.type || !pair.value) continue;
+    const translatedType = translateOptionTypeName(pair.type);
+    // Skip if it's a mandatory attribute (handled by quantity/volume/weight columns)
+    if (MANDATORY_ATTR_NAMES.has(translatedType.toLowerCase()) || MANDATORY_ATTR_NAMES.has(pair.type.toLowerCase())) {
+      console.log(`[Attributes] Skipping option "${pair.type}" → "${translatedType}" (handled by dedicated column)`);
+      continue;
+    }
+    // Skip if already present from category meta
+    if (existingAttrNames.has(translatedType.toLowerCase())) {
+      console.log(`[Attributes] Skipping option "${pair.type}" → "${translatedType}" (already from category meta)`);
+      continue;
+    }
+    attributes.push({
+      attributeTypeName: translatedType.substring(0, 25),
+      attributeValueName: normalizeOptionValue(pair.value, pair.type).substring(0, 30)
+    });
+    console.log(`[Attributes] Added user option "${pair.type}" → ${translatedType}=${normalizeOptionValue(pair.value, pair.type)}`);
   }
 
   const images: any[] = [];
@@ -1805,6 +1866,46 @@ export function transformVariantGroupToCoupangFormat(
     console.log('[Variants] Deduplicated itemNames:', items.map((it: any) => it.itemName));
   }
 
+  // === OPTION DISPLAY CLEANUP ===
+  // If an attribute is identical across ALL variants (e.g., all are 35ml and 1개), 
+  // set exposed: 'NONE' so it doesn't clutter the variant selector dropdown.
+  if (items.length > 1) {
+    const commonAttributes = new Map<string, string>();
+    const differingAttributes = new Set<string>();
+    
+    // Baseline from first item
+    for (const attr of items[0].attributes || []) {
+      commonAttributes.set(attr.attributeTypeName, attr.attributeValueName);
+    }
+    
+    // Compare with the rest
+    for (let i = 1; i < items.length; i++) {
+      const itemAttrMap = new Map((items[i].attributes || []).map((a: any) => [a.attributeTypeName, a.attributeValueName]));
+      for (const [typeName, valueName] of commonAttributes.entries()) {
+        if (itemAttrMap.get(typeName) !== valueName) {
+          differingAttributes.add(typeName);
+          commonAttributes.delete(typeName);
+        }
+      }
+    }
+    
+    // Only hide if we have at least one differentiating attribute left to serve as the option selector
+    if (differingAttributes.size > 0 && commonAttributes.size > 0) {
+      for (const item of items) {
+        if (item.attributes) {
+          for (const attr of item.attributes) {
+            if (commonAttributes.has(attr.attributeTypeName)) {
+              attr.exposed = 'NONE';
+            } else {
+              attr.exposed = 'EXPOSED';
+            }
+          }
+        }
+      }
+      console.log(`[Variants] Hid redundant attributes from option selector: ${Array.from(commonAttributes.keys()).join(', ')}`);
+    }
+  }
+
   console.log(`[Variants] Created multi-item product with ${items.length} variant(s) under "${commonProductName}"`);
   return buildProductPayload(parentProduct, vendorId, wingSettings, items, commonProductName);
 }
@@ -1855,6 +1956,90 @@ function validateVariantGroupForUpload(variantProducts: any[], wingSettings: any
   if (hasDuplicates) {
     errors.push('Duplicate Option Values. Each variant row in the group must have a UNIQUE combination of Option Type/Value (e.g. Size: Small, Size: Large). Please check your CSV.');
   }
+
+  return errors;
+}
+
+export function validateProductAgainstCategoryMeta(product: any, meta: any): string[] {
+  const errors: string[] = [];
+  const metas = meta?.attributeTypeMetas || meta?.data?.attributeTypeMetas;
+  if (!metas) return errors;
+
+  const userOptionTypes = [
+    product.optionType1, product.optionType2, product.optionType3, product.optionType4
+  ].map(t => String(t || '').trim().toLowerCase()).filter(Boolean);
+
+  if (product.quantity) userOptionTypes.push('수량', 'quantity', '개수');
+  if (product.volume) userOptionTypes.push('용량', 'volume', '개당 용량');
+  if (product.weight) userOptionTypes.push('중량', 'weight', '개당 중량');
+
+  const bundleGroups = new Map<number, any[]>();
+  const mandatoryAttributes: any[] = [];
+
+  for (const attrMeta of metas) {
+    if (attrMeta.required === 'MANDATORY') {
+      if (attrMeta.groupNumber > 0) {
+        if (!bundleGroups.has(attrMeta.groupNumber)) bundleGroups.set(attrMeta.groupNumber, []);
+        bundleGroups.get(attrMeta.groupNumber)!.push(attrMeta);
+      } else {
+        mandatoryAttributes.push(attrMeta);
+      }
+    }
+  }
+
+  const isFulfilled = (attrMeta: any) => {
+    const attrName = (attrMeta.attributeTypeName || '').toLowerCase();
+    const koreanSynonyms: Record<string, string[]> = {
+      '용량': ['개당 용량', '총 용량', '순 내용 양', 'volume'],
+      '개당 용량': ['용량', '총 용량', '순 내용 양', 'volume'],
+      '중량': ['개당 중량', '총 중량', '순 함량 중량', 'weight'],
+      '개당 중량': ['중량', '총 중량', '순 함량 중량', 'weight'],
+      '수량': ['총 수량', '개수', 'quantity'],
+    };
+    
+    const validNames = [attrName];
+    for (const [key, syns] of Object.entries(koreanSynonyms)) {
+      if (attrName.includes(key) || key.includes(attrName)) {
+        validNames.push(...syns);
+      }
+    }
+    
+    return userOptionTypes.some(userType => 
+      validNames.some(vName => userType.includes(vName) || vName.includes(userType))
+    );
+  };
+
+  for (const attrMeta of mandatoryAttributes) {
+    if (!isFulfilled(attrMeta)) {
+      errors.push(`Missing required option for this category: "${attrMeta.attributeTypeName}". Please add this column to your CSV/Excel file.`);
+    }
+  }
+
+  for (const [groupNum, groupAttrs] of bundleGroups) {
+    const fulfilled = groupAttrs.some((attr: any) => isFulfilled(attr));
+    if (!fulfilled) {
+      const options = groupAttrs.map((a: any) => `"${a.attributeTypeName}"`).join(' OR ');
+      errors.push(`Missing required option from bundle group. You must provide at least one of: [${options}]. Please add this column to your CSV/Excel file.`);
+    }
+  }
+
+  const checkUnit = (value: any, isVolume: boolean) => {
+    if (!value) return null;
+    const str = String(value).trim().toLowerCase();
+    const isCount = /(pcs?|pieces?|ea|개|pads?|tablets?|capsules?|정|캡슐|봉|매|팩|box(es)?|sets?)$/i.test(str);
+    if (isCount) {
+      return isVolume ? 
+        `Invalid unit for Volume (용량). You provided '${value}', but Volume requires liquid units like 'ml' or 'L'.` : 
+        `Invalid unit for Weight (중량). You provided '${value}', but Weight requires mass units like 'g' or 'kg'.`;
+    }
+    return null;
+  };
+
+  const volErr = checkUnit(product.volume, true);
+  if (volErr) errors.push(volErr);
+
+  const wtErr = checkUnit(product.weight, false);
+  if (wtErr) errors.push(wtErr);
 
   return errors;
 }
@@ -1977,6 +2162,12 @@ export async function uploadProduct(
 
   try {
     const validation = validateProductForUpload(product, wingSettings);
+    if (categoryMeta) {
+      const metaErrors = validateProductAgainstCategoryMeta(product, categoryMeta);
+      validation.errors.push(...metaErrors);
+      validation.valid = validation.errors.length === 0;
+    }
+
     if (!validation.valid) {
       return {
         success: false,
@@ -2072,6 +2263,16 @@ export async function uploadVariantGroup(
     const parentProduct = variantProducts[0];
   const commonProductName = deriveCommonProductName(variantProducts);
     const groupErrors = validateVariantGroupForUpload(variantProducts, wingSettings);
+    
+    if (categoryMeta) {
+      for (let i = 0; i < variantProducts.length; i++) {
+        const metaErrors = validateProductAgainstCategoryMeta(variantProducts[i], categoryMeta);
+        if (metaErrors.length > 0) {
+          groupErrors.push(...metaErrors.map(e => `Variant ${i + 1}: ${e}`));
+        }
+      }
+    }
+
     if (groupErrors.length > 0) {
       return {
         success: false,
