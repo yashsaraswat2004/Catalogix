@@ -209,10 +209,20 @@ export function CategoryRequirements({ product, credentials }: CategoryRequireme
   const hasRequirements = meta.bundleGroups.length > 0 || meta.mandatoryAttributes.length > 0;
 
   if (!hasRequirements) {
+    const hasPurchaseOption = !!(product.data.optionType1 && product.data.optionValue1);
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <CheckCircle2 className="w-4 h-4 text-success" />
-        No special attribute requirements for this category
+        {hasPurchaseOption ? (
+          <>
+            <CheckCircle2 className="w-4 h-4 text-success" />
+            Extra category attributes look optional. Purchase option: {product.data.optionType1} = {product.data.optionValue1}
+          </>
+        ) : (
+          <>
+            <AlertCircle className="w-4 h-4 text-destructive" />
+            Coupang still needs a purchase option (pack size/color). Fill Option Type 1 or Weight, then re-upload.
+          </>
+        )}
       </div>
     );
   }

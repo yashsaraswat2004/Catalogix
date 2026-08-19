@@ -9,9 +9,14 @@ import {
   fetchDisplayCategoryStatus,
   fetchCategoryRelatedMeta,
   recommendCategory,
-  getCategoryRequiredAttributes
+  getCategoryRequiredAttributes,
+  extractDisplayCategoryCode,
 } from '../services/coupangApi';
 import { generateHmacSignature } from '../services/hmacSignature';
+import {
+  repairProductPurchaseOptions,
+  repairVariantGroupPurchaseOptions,
+} from '../services/purchaseOptionMapper';
 
 const router = Router();
 
@@ -121,11 +126,11 @@ router.post('/', async (req: Request, res: Response) => {
         }
 
         if (dryRun) {
-          console.log('[API] Dry run mode - validating without API calls');
-          
-          // Group products by productGroup (mirroring batchUpload logic)
+          console.log('[API] Dry run mode - validating with category metadata (no product create)');
+
           const groupMap = new Map<string, any[]>();
           const standaloneProducts: { index: number; product: any }[] = [];
+          const categoryMetaCache = new Map<number, any>();
 
           for (let i = 0; i < products.length; i++) {
             const product = products[i];
@@ -140,18 +145,30 @@ router.post('/', async (req: Request, res: Response) => {
             }
           }
 
+          const loadMeta = async (category: any) => {
+            const code = extractDisplayCategoryCode(category);
+            if (!code) return null;
+            try {
+              return await fetchCategoryRelatedMeta(code, accessKey, secretKey, categoryMetaCache);
+            } catch (err) {
+              console.error('[DryRun] Category meta fetch failed:', err);
+              return null;
+            }
+          };
+
           const transformedProducts: any[] = [];
 
-          // Validate variant groups
           for (const [groupId, groupProducts] of groupMap) {
+            const categoryMeta = await loadMeta(groupProducts[0].category);
+            const repairedGroup = repairVariantGroupPurchaseOptions(groupProducts, categoryMeta);
             const groupErrors: string[] = [];
             const categories = new Set(
-              groupProducts.map((p: any) => String(p.category || '').trim()).filter(Boolean)
+              repairedGroup.map((p: any) => String(p.category || '').trim()).filter(Boolean)
             );
             if (categories.size > 1) {
               groupErrors.push('All rows in a variant group must use the same category');
             }
-            groupProducts.forEach((p: any, idx: number) => {
+            repairedGroup.forEach((p: any, idx: number) => {
               const validation = validateProductForUpload(p, wingSettings);
               if (!validation.valid) {
                 validation.errors.forEach((err: string) => groupErrors.push(`Variant ${idx + 1}: ${err}`));
@@ -161,7 +178,7 @@ router.post('/', async (req: Request, res: Response) => {
             let transformed = null;
             if (groupErrors.length === 0) {
               try {
-                transformed = transformVariantGroupToCoupangFormat(groupProducts, vendorId, wingSettings);
+                transformed = transformVariantGroupToCoupangFormat(repairedGroup, vendorId, wingSettings, undefined, categoryMeta);
               } catch (err) {
                 groupErrors.push(`Transform error: ${err instanceof Error ? err.message : 'Unknown'}`);
               }
@@ -169,25 +186,26 @@ router.post('/', async (req: Request, res: Response) => {
 
             transformedProducts.push({
               index: transformedProducts.length,
-              productName: `${groupProducts[0].productName} (${groupProducts.length} variants)`,
+              productName: `${repairedGroup[0].productName} (${repairedGroup.length} variants)`,
               groupId,
-              variantCount: groupProducts.length,
+              variantCount: repairedGroup.length,
               valid: groupErrors.length === 0,
               errors: groupErrors,
               transformed
             });
           }
 
-          // Validate standalone products
           for (const { product } of standaloneProducts) {
-            const validation = validateProductForUpload(product, wingSettings);
+            const categoryMeta = await loadMeta(product.category);
+            const repaired = repairProductPurchaseOptions(product, categoryMeta).product;
+            const validation = validateProductForUpload(repaired, wingSettings);
             let transformed = null;
             if (validation.valid) {
-              transformed = transformProductToCoupangFormat(product, vendorId, wingSettings);
+              transformed = transformProductToCoupangFormat(repaired, vendorId, wingSettings, undefined, categoryMeta);
             }
             transformedProducts.push({
               index: transformedProducts.length,
-              productName: product.productName,
+              productName: repaired.productName,
               valid: validation.valid,
               errors: validation.errors,
               transformed

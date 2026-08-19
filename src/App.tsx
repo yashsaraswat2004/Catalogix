@@ -19,6 +19,10 @@ const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const AppHub = lazy(() => import("./pages/AppHub"));
+const Shipping = lazy(() => import("./pages/Shipping"));
+const ImageGeneration = lazy(() => import("./pages/ImageGeneration"));
+const AppShell = lazy(() => import("./components/layout/AppShell").then(m => ({ default: m.AppShell })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,20 +55,21 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/image-generation" element={<ImageGeneration />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password/:token" element={<ResetPassword />} />
-                <Route path="/dashboard" element={
+                <Route element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <AppShell />
                   </ProtectedRoute>
-                } />
-                <Route path="/repricing" element={
-                  <ProtectedRoute>
-                    <Repricing />
-                  </ProtectedRoute>
-                } />
+                }>
+                  <Route path="/app" element={<AppHub />} />
+                  <Route path="/app/shipping" element={<Shipping />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/repricing" element={<Repricing />} />
+                </Route>
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

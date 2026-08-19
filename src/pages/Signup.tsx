@@ -56,7 +56,7 @@ const Signup = () => {
 
     if (result.success) {
       toast.success('Account created successfully!');
-      navigate('/dashboard');
+      navigate('/app');
     } else {
       toast.error(result.message);
     }

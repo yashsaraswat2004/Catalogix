@@ -11,6 +11,7 @@ import coupangRoutes from './routes/coupang';
 import translateRoutes from './routes/translate';
 import authRoutes from './routes/auth';
 import repricingRoutes from './routes/repricing';
+import imageRoutes from './routes/images';
 
 dotenv.config();
 
@@ -178,6 +179,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/coupang', coupangRoutes);
 app.use('/api/translate', translateRoutes);
 app.use('/api/repricing', repricingRoutes);
+app.use('/api/images', imageRoutes);
 
 // Health check - Enhanced
 app.get('/health', (req: Request, res: Response) => {
@@ -203,7 +205,8 @@ app.get('/', (req: Request, res: Response) => {
       health: '/health',
       auth: '/api/auth',
       coupang: '/api/coupang',
-      translate: '/api/translate'
+      translate: '/api/translate',
+      images: '/api/images'
     }
   });
 });
@@ -267,6 +270,7 @@ async function startServer() {
       console.log(` Auth API: http://localhost:${PORT}/api/auth`);
       console.log(` Coupang API: http://localhost:${PORT}/api/coupang`);
       console.log(` Translate API: http://localhost:${PORT}/api/translate`);
+      console.log(` Images API: http://localhost:${PORT}/api/images`);
       console.log(` Health Check: http://localhost:${PORT}/health\n`);
     });
   } catch (error) {

@@ -20,6 +20,9 @@ export const config = {
   
   // Sentry
   sentryDsn: import.meta.env.VITE_SENTRY_DSN || '',
+
+  // AI (Shipping tools — CN22 address parsing, India Post translation)
+  geminiApiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
 } as const;
 
 // Type-safe environment variable access

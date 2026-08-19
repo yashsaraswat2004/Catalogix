@@ -4,6 +4,7 @@ import { Upload, FileSpreadsheet, X, AlertCircle, Languages, Download } from 'lu
 import { cn } from '@/lib/utils';
 import { parseXlsxFile } from '@/lib/xlsxParser';
 import { parseCsvFile, isCsvFile } from '@/lib/csvParser';
+import { repairParsedProducts } from '@/lib/purchaseOptions';
 import { ParsedProduct } from '@/types/coupang';
 
 interface FileUploadProps {
@@ -36,15 +37,16 @@ export function FileUpload({ onFileParsed, isProcessing }: FileUploadProps) {
 
     try {
       // Use appropriate parser based on file type
-      const products = isFileCsv 
-        ? await parseCsvFile(file) 
+      const parsed = isFileCsv
+        ? await parseCsvFile(file)
         : await parseXlsxFile(file);
-        
-      if (products.length === 0) {
+
+      if (parsed.length === 0) {
         setError('No product data found in the file.');
         setIsParsing(false);
         return;
       }
+      const products = repairParsedProducts(parsed);
       onFileParsed(products, file.name);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error processing file.');

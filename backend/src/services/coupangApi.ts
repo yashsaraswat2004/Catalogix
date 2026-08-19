@@ -1,5 +1,12 @@
 import { generateHmacSignature } from './hmacSignature';
 import { sanitizeProductPayload, logAttributeValidation } from '../utils/encodingUtils';
+import {
+  repairProductPurchaseOptions,
+  repairVariantGroupPurchaseOptions,
+  ensurePurchaseOptionAttribute,
+  translateCoupangError,
+  normalizeCoupangMeasure,
+} from './purchaseOptionMapper';
 
 const COUPANG_API_BASE = 'https://api-gateway.coupang.com';
 
@@ -391,9 +398,8 @@ function isInvalidAttributeValue(value: string | undefined | null): boolean {
   if (!value) return true;
   const trimmed = String(value).trim();
   if (trimmed === '') return true;
-  // Only reject single-digit placeholders "0" and "1" (common Excel defaults)
-  // Do NOT reject larger numbers like "100", "2", "3" etc. as they may be legitimate
-  if (trimmed === '0' || trimmed === '1') return true;
+  // Reject Excel placeholder "0" only. "1" is a real pack count.
+  if (trimmed === '0') return true;
   if (trimmed.toLowerCase() === 'n/a') return true;
   if (trimmed.toLowerCase() === 'none') return true;
   if (trimmed === '-') return true;
@@ -467,11 +473,13 @@ function normalizeOptionValue(value: string, typeName?: string): string {
     str = str.replace(pattern, replacement);
   }
 
-  // Remove extra spaces between number and unit: "1 개" → "1개", but ONLY for Korean units
-  // Do NOT match English letters, otherwise "110 Fair" becomes "110Fair", causing bizarre translations 
-  str = str.replace(/(\d+)\s+([가-힣]+)/g, '$1$2');
+  // Collapse space before known units only (200 g → 200g). Do not glue shade names like "110 Fair".
+  str = str.replace(/(\d+(?:\.\d+)?)\s+(g|kg|mg|ml|l|oz|개|팩|정|캡슐|봉|세트|박스)\b/gi, (_, num, unit) => {
+    const mapped = unit.toLowerCase() === 'gm' ? 'g' : unit;
+    return `${num}${mapped}`;
+  });
 
-  return str.trim();
+  return normalizeCoupangMeasure(str);
 }
 
 function extractCountFromText(text: string, patterns: string[]): string | null {
@@ -1033,10 +1041,7 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   const searchKeywords = (product.searchKeywords || '').toLowerCase();
   const combined = `${productName} ${description} ${searchKeywords}`;
 
-  // Collect user-provided options - VALIDATE THEM FIRST
-  // Filter out option types that overlap with mandatory attributes (수량, 개당 용량, 개당 중량)
-  // Those are handled by dedicated quantity/volume/weight columns with proper validation
-  const MANDATORY_OVERLAP_NAMES = new Set(['수량', '개당 용량', '개당 중량', '용량', '중량']);
+  // Keep 용량/중량/수량 from Excel option columns — they ARE the purchase option Coupang requires.
   const userProvidedOptions: Array<{ type: string; value: string }> = [];
 
   const optionSlots = [
@@ -1049,11 +1054,6 @@ export function buildAttributesFromCategoryMeta(product: any, meta: any): any[] 
   for (const slot of optionSlots) {
     if (!isInvalidAttributeValue(slot.type) && !isInvalidAttributeValue(slot.value)) {
       const translatedType = translateOptionTypeName(slot.type);
-      // Skip if this option type overlaps with mandatory attributes
-      if (MANDATORY_OVERLAP_NAMES.has(translatedType.toLowerCase()) || MANDATORY_OVERLAP_NAMES.has(slot.type.toLowerCase())) {
-        console.log(`[Attributes] Skipping option ${slot.num}: "${slot.type}" → "${translatedType}" (handled by dedicated column, value: ${slot.value})`);
-        continue;
-      }
       const normalizedValue = normalizeOptionValue(slot.value.trim(), slot.type);
       userProvidedOptions.push({ type: translatedType, value: normalizedValue });
       console.log(`[Attributes] User option ${slot.num}: ${slot.type} -> ${translatedType} = ${normalizedValue}`);
@@ -1516,6 +1516,12 @@ function buildVariantItemName(product: any, baseProductName?: string): string {
 }
 // Helper: Build a single Coupang item object from product data
 function buildSingleItem(product: any, wingSettings: any, notices?: any[], categoryMeta?: any, baseProductName?: string): any {
+  const repaired = repairProductPurchaseOptions(product, categoryMeta);
+  if (repaired.notes.length) {
+    console.log(`[PurchaseOptions] ${repaired.notes.join('; ')}`);
+  }
+  product = repaired.product;
+
   let attributes: any[];
   if (categoryMeta) {
     attributes = buildAttributesFromCategoryMeta(product, categoryMeta);
@@ -1557,9 +1563,7 @@ function buildSingleItem(product: any, wingSettings: any, notices?: any[], categ
     console.log(`[Attributes] Fallback path: ${attributes.length} attribute(s) total`);
   }
 
-  // ALWAYS add user option types (Color, Type, etc.) regardless of path
-  // These differentiate variant items and must be present for Coupang to accept the group
-  const MANDATORY_ATTR_NAMES = new Set(['수량', '개당 용량', '개당 중량', '용량', '중량', 'quantity', 'volume', 'weight', 'capacity']);
+  // Add remaining user options (color, type, etc.) that are not already in attributes
   const existingAttrNames = new Set(attributes.map(a => (a.attributeTypeName || '').toLowerCase()));
 
   const optionPairs = [
@@ -1572,22 +1576,18 @@ function buildSingleItem(product: any, wingSettings: any, notices?: any[], categ
   for (const pair of optionPairs) {
     if (!pair.type || !pair.value) continue;
     const translatedType = translateOptionTypeName(pair.type);
-    // Skip if it's a mandatory attribute (handled by quantity/volume/weight columns)
-    if (MANDATORY_ATTR_NAMES.has(translatedType.toLowerCase()) || MANDATORY_ATTR_NAMES.has(pair.type.toLowerCase())) {
-      console.log(`[Attributes] Skipping option "${pair.type}" → "${translatedType}" (handled by dedicated column)`);
-      continue;
-    }
-    // Skip if already present from category meta
-    if (existingAttrNames.has(translatedType.toLowerCase())) {
-      console.log(`[Attributes] Skipping option "${pair.type}" → "${translatedType}" (already from category meta)`);
+    if (existingAttrNames.has(translatedType.toLowerCase()) || existingAttrNames.has(String(pair.type).toLowerCase())) {
       continue;
     }
     attributes.push({
       attributeTypeName: translatedType.substring(0, 25),
       attributeValueName: normalizeOptionValue(pair.value, pair.type).substring(0, 30)
     });
+    existingAttrNames.add(translatedType.toLowerCase());
     console.log(`[Attributes] Added user option "${pair.type}" → ${translatedType}=${normalizeOptionValue(pair.value, pair.type)}`);
   }
+
+  attributes = ensurePurchaseOptionAttribute(attributes, product, categoryMeta);
 
   const images: any[] = [];
   if (product.mainImage) {
@@ -1810,6 +1810,8 @@ export function transformVariantGroupToCoupangFormat(
   categoryMeta?: any
 ): any {
   if (variantProducts.length === 0) throw new Error('No variant products provided');
+
+  variantProducts = repairVariantGroupPurchaseOptions(variantProducts, categoryMeta);
 
   // First product in group is the "parent" — provides product-level info
   const parentProduct = variantProducts[0];
@@ -2161,6 +2163,9 @@ export async function uploadProduct(
   const query = "";
 
   try {
+    const repairedProduct = repairProductPurchaseOptions(product, categoryMeta).product;
+    product = repairedProduct;
+
     const validation = validateProductForUpload(product, wingSettings);
     if (categoryMeta) {
       const metaErrors = validateProductAgainstCategoryMeta(product, categoryMeta);
@@ -2232,7 +2237,7 @@ export async function uploadProduct(
 
       return {
         success: false,
-        error: errorMsg,
+        error: translateCoupangError(errorMsg),
         details: responseData,
         payload: payload
       };
@@ -2260,8 +2265,9 @@ export async function uploadVariantGroup(
   const query = "";
 
   try {
+    variantProducts = repairVariantGroupPurchaseOptions(variantProducts, categoryMeta);
     const parentProduct = variantProducts[0];
-  const commonProductName = deriveCommonProductName(variantProducts);
+    const commonProductName = deriveCommonProductName(variantProducts);
     const groupErrors = validateVariantGroupForUpload(variantProducts, wingSettings);
     
     if (categoryMeta) {
@@ -2333,7 +2339,7 @@ export async function uploadVariantGroup(
       console.log('[Upload] Variant group rejected by Coupang:', errorMsg);
       return {
         success: false,
-        error: errorMsg,
+        error: translateCoupangError(errorMsg),
         details: responseData,
         payload: payload,
         variantCount: variantProducts.length

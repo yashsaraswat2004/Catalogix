@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { ParsedProduct, FIELD_LABELS_EN, CoupangProduct, EDITABLE_FIELDS, CoupangApiCredentials } from '@/types/coupang';
 import { revalidateProduct, COLUMN_INDICES } from '@/lib/xlsxParser';
+import { repairProductData, translateCoupangError } from '@/lib/purchaseOptions';
 import {
   Table,
   TableBody,
@@ -123,7 +124,7 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
 
     const updatedProduct: ParsedProduct = {
       ...product,
-      data: { ...product.data, ...editedData },
+      data: repairProductData({ ...product.data, ...editedData }),
     };
 
     // Re-validate after edit
@@ -853,7 +854,7 @@ export function ProductTable({ products, selectedIds, onSelectionChange, onProdu
                           {product.errorMessage && (
                             <div className="col-span-full">
                               <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                                <p className="text-sm text-destructive">{product.errorMessage}</p>
+                                <p className="text-sm text-destructive">{translateCoupangError(product.errorMessage)}</p>
                               </div>
                             </div>
                           )}

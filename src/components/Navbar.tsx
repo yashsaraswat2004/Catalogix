@@ -21,8 +21,13 @@ const Navbar = () => {
   const navLinks = [
     { path: '/', label: 'Home' },
     { path: '/about', label: 'About' },
-    { path: '/dashboard', label: 'Dashboard' },
-    { path: '/repricing', label: 'Repricing' },
+    { path: '/image-generation', label: 'Image Generation' },
+    ...(isAuthenticated
+      ? [{ path: '/app', label: 'Platform' }]
+      : [
+          { path: '/dashboard', label: 'Dashboard' },
+          { path: '/repricing', label: 'Repricing' },
+        ]),
   ];
 
   const handleLogout = async () => {
@@ -75,9 +80,9 @@ const Navbar = () => {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer">
+                    <Link to="/app" className="cursor-pointer">
                       <Package className="h-4 w-4 mr-2" />
-                      Dashboard
+                      Platform
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
